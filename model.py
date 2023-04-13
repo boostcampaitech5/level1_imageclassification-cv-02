@@ -1,6 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+import timm
+
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -31,3 +33,36 @@ class BaseModel(nn.Module):
         x = self.avgpool(x)
         x = x.view(-1, 128)
         return self.fc(x)
+    
+class Mask_Resnet50(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('resnet50',num_classes =num_classes,  pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class Mask_Efficientnet_b4(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('efficientnet_b4',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class Mask_VIT(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('vit_base_patch16_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
