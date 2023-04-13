@@ -23,7 +23,7 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
+            CenterCrop(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -134,20 +134,25 @@ class MaskBaseDataset(Dataset):
         self.calc_statistics()
 
     def setup(self):
+        # 폴더 list 받기
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
             if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
                 continue
-
+            # img_folder == 000004_male_Asian_54 
             img_folder = os.path.join(self.data_dir, profile)
+            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg]
             for file_name in os.listdir(img_folder):
+                # 확장자 제거
                 _file_name, ext = os.path.splitext(file_name)
                 if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
 
                 img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
                 mask_label = self._file_names[_file_name]
 
+                # 000004_male_Asian_54 -> 000004, male, Asian, 54
                 id, gender, race, age = profile.split("_")
                 gender_label = GenderLabels.from_str(gender)
                 age_label = AgeLabels.from_number(age)
@@ -158,6 +163,7 @@ class MaskBaseDataset(Dataset):
                 self.age_labels.append(age_label)
 
     def calc_statistics(self):
+        # mean과 std 구하기, 3000개만
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
             print("[Warning] Calculating statistics... It can take a long time depending on your CPU machine")
@@ -181,10 +187,12 @@ class MaskBaseDataset(Dataset):
         mask_label = self.get_mask_label(index)
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
+        # 각각의 라벨들로 0~18의 라벨 만들기
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
 
+        # transform 적용
         image_transform = self.transform(image)
-        return image_transform, multi_class_label
+        return image_transform, age_label
 
     def __len__(self):
         return len(self.image_paths)
@@ -215,6 +223,7 @@ class MaskBaseDataset(Dataset):
 
     @staticmethod
     def denormalize_image(image, mean, std):
+        # 정규화한것을 다시 되돌리기
         img_cp = image.copy()
         img_cp *= std
         img_cp += mean
@@ -231,6 +240,7 @@ class MaskBaseDataset(Dataset):
         """
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
+        # 길이 만큼 random_split
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
 
@@ -244,14 +254,17 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
     """
 
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
         super().__init__(data_dir, mean, std, val_ratio)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
         length = len(profiles)
+        # profiles 길이에서 ratio 만큼 곱해 비율 측정
         n_val = int(length * val_ratio)
 
+        # n_val에서 구한 크기 만큼 random sampling
         val_indices = set(random.sample(range(length), k=n_val))
         train_indices = set(range(length)) - val_indices
         return {
@@ -261,22 +274,31 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     def setup(self):
         profiles = os.listdir(self.data_dir)
+        # data_dir 에서 "."으로 시작하지 않는 폴더 리스트 저장 -> 사람으로 random하게 split
         profiles = [profile for profile in profiles if not profile.startswith(".")]
+        # 랜덤하게 split
         split_profiles = self._split_profile(profiles, self.val_ratio)
-
+        print(split_profiles.items())
         cnt = 0
+        # phase - [train, val] , indices - [index 번호]
         for phase, indices in split_profiles.items():
             for _idx in indices:
+                # profile - 폴더 리스트중에서 index번호에 해당하는 것 뽑기
                 profile = profiles[_idx]
+                # 폴더 파일 이름
                 img_folder = os.path.join(self.data_dir, profile)
+                # 폴더 파일 7개중에서 loop
                 for file_name in os.listdir(img_folder):
+                    # 파일확장자로 split -> 확장자 제거
                     _file_name, ext = os.path.splitext(file_name)
                     if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
-
+                    # 이미지 파일 path 만들기
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                    # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
                     mask_label = self._file_names[_file_name]
 
+                    # 000004_male_Asian_54 -> 000004, male, Asian, 54
                     id, gender, race, age = profile.split("_")
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
@@ -286,10 +308,13 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     self.gender_labels.append(gender_label)
                     self.age_labels.append(age_label)
 
+                    # indices 해당하는 phase[train or val] 에 index번호 저장
                     self.indices[phase].append(cnt)
                     cnt += 1
 
     def split_dataset(self) -> List[Subset]:
+        # subset 사용법 https://yeko90.tistory.com/entry/pytorch-how-to-use-Subset#1)_Subset_%EA%B8%B0%EB%B3%B8_%EC%BB%A8%EC%85%89
+        # indice에 train, val 으로 해당하는 subset 분리
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
 

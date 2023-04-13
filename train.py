@@ -16,6 +16,7 @@ from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
@@ -223,6 +224,7 @@ def train(data_dir, model_dir, args):
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
+            # interval 마다 loss, acc 계산
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
@@ -240,6 +242,8 @@ def train(data_dir, model_dir, args):
         scheduler.step()
 
         # val loop
+        trues = []
+        predicts = []
         with torch.no_grad():
             print("Calculating validation results...")
             model.eval()
@@ -254,6 +258,10 @@ def train(data_dir, model_dir, args):
                 outs = model(inputs)
                 preds = torch.argmax(outs, dim=-1)
 
+                # f1_score를 위한 label, predict 저장
+                trues += labels.detach().cpu().numpy().tolist()
+                predicts += preds.detach().cpu().numpy().tolist()
+                
                 loss_item = criterion(outs, labels).item()
                 acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
@@ -266,6 +274,7 @@ def train(data_dir, model_dir, args):
                         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
                     )
 
+            val_score = f1_score(trues, predicts, average='macro')
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
@@ -280,10 +289,10 @@ def train(data_dir, model_dir, args):
             )
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
+            logger.add_scalar("Val/f1_score",val_score,epoch)
             logger.add_figure("results", figure, epoch)
             print()
-        logger.close()
-
+    logger.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -291,9 +300,9 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
     parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=list, default=[256, 192], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
