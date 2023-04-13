@@ -11,6 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn as nn
+from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -137,13 +139,46 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
+    '''
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
         weight_decay=5e-4
     )
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    '''
+    if args.optimizer == 'sgd':
+        optimizer = SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr,
+            weight_decay=args.weight_decay
+        )
+    elif args.optimizer == 'momentum':
+        optimizer = SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+            nesterov=True
+        )
+    elif args.optimizer == 'adagrad':
+        optimizer = Adagrad(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr,
+            weight_decay=args.weight_decay
+        )
+    elif args.optimizer == 'adam':
+        optimizer = Adam(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr,
+            weight_decay=args.weight_decay
+        )
+    else:
+        raise NotImplementedError(
+            f"Unsupported optimizer: {args.optimizer}\nPlease enter either sgd, momentum, adagrad, or adam as the optimizer."
+        )
+    
+    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -253,6 +288,10 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
+    parser.add_argument('--optimizer', type=str, default='sgd', help='optimizer such as sgd, momentum, adam, adagrad (default: sgd)')
+    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay (default: 5e-4)')
+    parser.add_argument('--scheduler', type=str, default='steplr', help='scheduler such as steplr, lambdalr, exponentiallr, cycliclr, etc. (default: steplr)')
+    parser.add_argument('--gamma', type=float, default=0.5, help='learning rate scheduler gamma (default: 0.5)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
