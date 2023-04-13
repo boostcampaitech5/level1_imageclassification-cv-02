@@ -13,7 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import SGD, Adagrad, Adam
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -177,9 +177,24 @@ def train(data_dir, model_dir, args):
         raise NotImplementedError(
             f"Unsupported optimizer: {args.optimizer}\nPlease enter either sgd, momentum, adagrad, or adam as the optimizer."
         )
-    
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
 
+    if args.scheduler == 'steplr':    
+        scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
+    elif args.scheduler == 'lambdalr':
+        scheduler = LambdaLR(optimizer, lr_lambda = lambda epoch : 0.95 ** epoch)
+    elif args.scheduler == 'exponentiallr':
+        scheduler = ExponentialLR(optimizer, gamma=args.gamma)
+    elif args.scheduler == 'cosineannealinglr':
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
+    elif args.scheduler == 'cycliclr':
+        scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
+    elif args.scheduler == 'reducelronplateau':
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
+    else:
+        raise NotImplementedError(
+            f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
+        )
+    
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
     with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
@@ -267,6 +282,7 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_figure("results", figure, epoch)
             print()
+        logger.close()
 
 
 if __name__ == '__main__':
@@ -281,7 +297,6 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
@@ -290,8 +305,14 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
     parser.add_argument('--optimizer', type=str, default='sgd', help='optimizer such as sgd, momentum, adam, adagrad (default: sgd)')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay (default: 5e-4)')
-    parser.add_argument('--scheduler', type=str, default='steplr', help='scheduler such as steplr, lambdalr, exponentiallr, cycliclr, etc. (default: steplr)')
+    parser.add_argument('--scheduler', type=str, default='steplr', help='scheduler such as steplr, lambdalr, exponentiallr, cycliclr, reducelronplateau etc. (default: steplr)')
     parser.add_argument('--gamma', type=float, default=0.5, help='learning rate scheduler gamma (default: 0.5)')
+    parser.add_argument('--tmax', type=int, default=5, help='tmax used in CyclicLR and CosineAnnealingLR (default: 5)')
+    parser.add_argument('--maxlr', type=float, default=0.1, help='maxlr used in CyclicLR (default: 0.1)')
+    parser.add_argument('--mode', type=str, default='triangular', help='mode used in CyclicLR such as triangular, triangular2, exp_range (default: triangular)')
+    parser.add_argument('--factor', type=float, default='0.5', help='mode used in ReduceLROnPlateau (default: 0.5)')
+    parser.add_argument('--patience', type=int, default='4', help='mode used in ReduceLROnPlateau (default: 4)')
+    parser.add_argument('--threshold', type=float, default='1e-4', help='mode used in ReduceLROnPlateau (default: 1e-4)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
