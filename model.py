@@ -48,7 +48,7 @@ class Mask_Resnet50(nn.Module):
 class Mask_Efficientnet_b4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = timm.create_model('efficientnet_b4',num_classes =num_classes, pretrained=True)
+        self.backbone = timm.create_model('efficientnet_b3',num_classes =num_classes, pretrained=True)
         
 
     def forward(self, x):
