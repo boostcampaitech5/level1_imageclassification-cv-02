@@ -34,7 +34,31 @@ class BaseModel(nn.Module):
         x = x.view(-1, 128)
         return self.fc(x)
     
-class Mask_Resnet50(nn.Module):
+    #ResNet
+    
+class MaskResnet18(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('resnet18',num_classes =num_classes,  pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskResnet34(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('resnet34',num_classes =num_classes,  pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskResnet50(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('resnet50',num_classes =num_classes,  pretrained=True)
@@ -45,7 +69,53 @@ class Mask_Resnet50(nn.Module):
         
         return x
 
-class Mask_Efficientnet_b4(nn.Module):
+class MaskResnet101(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('resnet101',num_classes =num_classes,  pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+    #EfficientNet
+
+class MaskEfficientNet_b0(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('efficientnet_b0',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskEfficientNet_b1(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('efficientnet_b1',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskEfficientNet_b2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('efficientnet_b2',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskEfficientNet_b3(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b3',num_classes =num_classes, pretrained=True)
@@ -56,10 +126,23 @@ class Mask_Efficientnet_b4(nn.Module):
         
         return x
 
+class MaskEfficientNet_b4(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('efficientnet_b4',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+    #VIT
+
 class Mask_VIT(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = timm.create_model('vit_base_patch16_224',num_classes =num_classes, pretrained=True)
+        self.backbone = timm.create_model('vit_base_patch8_224',num_classes =num_classes, pretrained=True)
         
 
     def forward(self, x):
