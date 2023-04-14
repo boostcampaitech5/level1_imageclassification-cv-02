@@ -23,7 +23,7 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop(resize),
+            Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
