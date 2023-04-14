@@ -15,10 +15,45 @@ IMG_EXTENSIONS = [
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
 ]
 
+def probablity_work(num):
+    if num-int(num) > np.random.uniform(0,1,1)[0]:
+        return int(num)+1
+    else:
+        return int(num)
+    
+
+def correction_dict(data_dir):
+    dic = {
+        "male_10" : 0,
+        "male_20" : 0,
+        "male_30" : 0,
+        "male_40" : 0,
+        "male_50" : 0,
+        "male_60" : 0,
+        "female_10" : 0,
+        "female_20" : 0,
+        "female_30" : 0,
+        "female_40" : 0,
+        "female_50" : 0,
+        "female_60" : 0,  
+        }
+    
+    profiles = os.listdir(data_dir)
+    for profile in profiles:
+        if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
+            continue
+        id, gender, race, age = profile.split("_")
+        key = gender.lower()+"_"+str(int(age)//10 *10)
+        dic[key] += 1
+        max_value = max(dic.values())
+    for key_ in dic.keys():
+        dic[key_] = max_value / dic[key_]
+    
+    return dic
+
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
-
 
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
@@ -123,12 +158,13 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
+
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
-
+        self.correction_dict = correction_dict(self.data_dir)
         self.transform = None
         self.setup()
         self.calc_statistics()
@@ -278,7 +314,6 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         profiles = [profile for profile in profiles if not profile.startswith(".")]
         # 랜덤하게 split
         split_profiles = self._split_profile(profiles, self.val_ratio)
-        print(split_profiles.items())
         cnt = 0
         # phase - [train, val] , indices - [index 번호]
         for phase, indices in split_profiles.items():
@@ -303,14 +338,21 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
-                    self.image_paths.append(img_path)
-                    self.mask_labels.append(mask_label)
-                    self.gender_labels.append(gender_label)
-                    self.age_labels.append(age_label)
+                    key = gender +"_" +str(int(age)//10 *10)
+                    num = self.correction_dict[key]
+                    if mask_label:
+                        num = num*5
+                    num = probablity_work(num)
 
-                    # indices 해당하는 phase[train or val] 에 index번호 저장
-                    self.indices[phase].append(cnt)
-                    cnt += 1
+                    for _ in range(num):
+                        self.image_paths.append(img_path)
+                        self.mask_labels.append(mask_label)
+                        self.gender_labels.append(gender_label)
+                        self.age_labels.append(age_label)
+
+                        # indices 해당하는 phase[train or val] 에 index번호 저장
+                        self.indices[phase].append(cnt)
+                        cnt += 1
 
     def split_dataset(self) -> List[Subset]:
         # subset 사용법 https://yeko90.tistory.com/entry/pytorch-how-to-use-Subset#1)_Subset_%EA%B8%B0%EB%B3%B8_%EC%BB%A8%EC%85%89
