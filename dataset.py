@@ -19,7 +19,6 @@ IMG_EXTENSIONS = [
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([

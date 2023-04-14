@@ -279,10 +279,6 @@ def train(data_dir, model_dir, args):
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_acc = max(best_val_acc, val_acc)
-            if val_score < best_val_score:
-                print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_score = val_score
             # # val_loss를 기준으로 저장
             # best_val_acc = max(best_val_acc, val_acc)
             # if val_loss < best_val_loss:
@@ -295,6 +291,10 @@ def train(data_dir, model_dir, args):
             #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
             #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
             #     best_val_acc = val_acc
+            if val_score < best_val_score:
+                print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
+                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                best_val_score = val_score
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
