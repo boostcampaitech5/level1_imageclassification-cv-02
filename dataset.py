@@ -23,7 +23,7 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop(resize),
+            Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -192,7 +192,7 @@ class MaskBaseDataset(Dataset):
 
         # transform 적용
         image_transform = self.transform(image)
-        return image_transform, age_label
+        return image_transform, multi_class_label
 
     def __len__(self):
         return len(self.image_paths)
@@ -278,7 +278,6 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         profiles = [profile for profile in profiles if not profile.startswith(".")]
         # 랜덤하게 split
         split_profiles = self._split_profile(profiles, self.val_ratio)
-        print(split_profiles.items())
         cnt = 0
         # phase - [train, val] , indices - [index 번호]
         for phase, indices in split_profiles.items():
