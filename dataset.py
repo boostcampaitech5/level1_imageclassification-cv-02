@@ -55,11 +55,10 @@ def correction_dict(data_dir):
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop(resize),
+            Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -315,7 +314,6 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         profiles = [profile for profile in profiles if not profile.startswith(".")]
         # 랜덤하게 split
         split_profiles = self._split_profile(profiles, self.val_ratio)
-        print(split_profiles.items())
         cnt = 0
         # phase - [train, val] , indices - [index 번호]
         for phase, indices in split_profiles.items():

@@ -203,6 +203,7 @@ def train(data_dir, model_dir, args):
 
     best_val_acc = 0
     best_val_loss = np.inf
+    best_val_score = 0
     for epoch in range(args.epochs):
         # train loop
         model.train()
@@ -277,14 +278,26 @@ def train(data_dir, model_dir, args):
             val_score = f1_score(trues, predicts, average='macro')
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
-            best_val_loss = min(best_val_loss, val_loss)
-            if val_acc > best_val_acc:
-                print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
+            best_val_acc = max(best_val_acc, val_acc)
+            # # val_loss를 기준으로 저장
+            # best_val_acc = max(best_val_acc, val_acc)
+            # if val_loss < best_val_loss:
+            #     print(f"New best model for val loss : {val_loss:4.2}! saving the best model..")
+            #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+            #     best_val_loss = val_loss
+            # val_acc를 기준으로 저장
+            # best_val_loss = min(best_val_loss, val_loss)
+            # if val_acc > best_val_acc:
+            #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
+            #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+            #     best_val_acc = val_acc
+            if val_score < best_val_score:
+                print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_acc = val_acc
+                best_val_score = val_score
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
-                f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
+                f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
                 f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
             )
             logger.add_scalar("Val/loss", val_loss, epoch)
@@ -302,7 +315,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[256, 192], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
