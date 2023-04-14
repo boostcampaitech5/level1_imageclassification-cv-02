@@ -192,7 +192,7 @@ class MaskBaseDataset(Dataset):
 
         # transform 적용
         image_transform = self.transform(image)
-        return image_transform, multi_class_label
+        return image_transform, age_label
 
     def __len__(self):
         return len(self.image_paths)
