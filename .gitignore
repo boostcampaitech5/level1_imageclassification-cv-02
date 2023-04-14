@@ -1,4 +1,4 @@
 checkpoint
 __pycache__
 exp*
-train.log
+*.log
