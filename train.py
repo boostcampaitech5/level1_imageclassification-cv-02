@@ -94,6 +94,9 @@ def train(data_dir, model_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
+
+    # -- balancing_option
+
     # num_classes
     if args.category == "multi":
         num_classes = 18 # 18
@@ -102,10 +105,12 @@ def train(data_dir, model_dir, args):
     else:
         num_classes = 3
 
+
     # -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
+        balancing_option = args.data_balancing
         num_classes = num_classes
     )
  
@@ -357,6 +362,7 @@ if __name__ == '__main__':
     parser.add_argument('--factor', type=float, default=0.5, help='mode used in ReduceLROnPlateau (default: 0.5)')
     parser.add_argument('--patience', type=int, default=4, help='mode used in ReduceLROnPlateau (default: 4)')
     parser.add_argument('--threshold', type=float, default=1e-4, help='mode used in ReduceLROnPlateau (default: 1e-4)')
+    parser.add_argument('--data_balancing', type=str, default='imbalance', help="balance such as imbalance, generation, 10s (default: imbalance)")
 
     # loss
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')

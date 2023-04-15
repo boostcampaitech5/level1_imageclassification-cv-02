@@ -8,13 +8,17 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop,\
+ColorJitter, RandomRotation, RandomHorizontalFlip
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
 ]
 
+
+# 확률적 반올림 함수
+# 실수를 확률적으로 정수로 바꿈 ex) 3.7 -> 30퍼 확률로 3, 70퍼 확률로 4
 def probablity_work(num):
     if num-int(num) > np.random.uniform(0,1,1)[0]:
         return int(num)+1
@@ -22,7 +26,8 @@ def probablity_work(num):
         return int(num)
     
 
-def correction_dict(data_dir):
+# 나이(10살 단위로), 성별로 데이터 밸런스를 맞춰주기 위한 dict
+def balancing_10s_dict(data_dir):
     dic = {
         "male_10" : 0,
         "male_20" : 0,
@@ -38,6 +43,7 @@ def correction_dict(data_dir):
         "female_60" : 0,  
         }
     
+    # 각 집단의 수를 구함
     profiles = os.listdir(data_dir)
     for profile in profiles:
         if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
@@ -46,6 +52,42 @@ def correction_dict(data_dir):
         key = gender.lower()+"_"+str(int(age)//10 *10)
         dic[key] += 1
         max_value = max(dic.values())
+
+    # 밸런싱
+    for key_ in dic.keys():
+        dic[key_] = max_value / dic[key_]
+    
+    return dic
+
+
+# 나이(3 그룹으로), 성별로 데이터 밸런스를 맞춰주기 위한 dict
+def balancing_gene_dict(data_dir):
+    dic = {
+        "male_young" : 0,
+        "male_middle" : 0,
+        "male_old" : 0,
+        "female_young" : 0,
+        "female_middle" : 0,
+        "female_old" : 0,
+        }
+    # 각 집단의 수를 구함
+    profiles = os.listdir(data_dir)
+    for profile in profiles:
+        if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
+            continue
+        id, gender, race, age = profile.split("_")
+        age = int(age)
+        if age >= 60:
+            age = "old"
+        elif age >= 30:
+            age = "middle"
+        else:
+            age = "young"
+
+        key = gender.lower()+"_"+age
+        dic[key] += 1
+        max_value = max(dic.values())
+    # 밸런싱
     for key_ in dic.keys():
         dic[key_] = max_value / dic[key_]
     
@@ -89,10 +131,9 @@ class CustomAugmentation:
         self.transform = Compose([
             CenterCrop((320, 256)),
             Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
+            ColorJitter(0.05, 0.05, 0.05, 0.05),
             ToTensor(),
             Normalize(mean=mean, std=std),
-            AddGaussianNoise()
         ])
 
     def __call__(self, image):
@@ -158,13 +199,26 @@ class MaskBaseDataset(Dataset):
     age_labels = []
 
 
-    def __init__(self, data_dir, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
-        self.correction_dict = correction_dict(self.data_dir)
         self.transform = None
+
+        # balancing_option 에 따라 나누는 방법 선택
+        # None : 안함, 10s : 10살 별로, generation : young, middle, old로
+        if balancing_option == "imbalance":
+            self.balancing_dict == {}
+        elif balancing_option == "10s":
+            self.balancing_dict = balancing_10s_dict(self.data_dir)
+        elif balancing_option == "generation":
+            self.balancing_dict = balancing_gene_dict(self.data_dir)
+        else:
+            assert True, "check data balancing option"
+
         self.setup()
         self.calc_statistics()
         self.num_classes = num_classes
@@ -289,10 +343,13 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
     """
 
-    def __init__(self, data_dir, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
-        super().__init__(data_dir, num_classes, mean, std, val_ratio)
+        self.balancing_dict = {}
+        super().__init__(data_dir, balancing_option, num_classes, mean, std, val_ratio)
+
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -338,12 +395,33 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
-                    key = gender +"_" +str(int(age)//10 *10)
-                    num = self.correction_dict[key]
-                    if mask_label:
-                        num = num*5
+                    # 밸런싱 안할 떄
+                    if len(self.balancing_dict.keys()) == 0:
+                        num = 1
+
+                    # 10살로 별로 나누었을 때
+                    elif len(self.balancing_dict.keys()) == 12:
+                        key = gender +"_" +str(int(age)//10 *10)
+                        num = self.balancing_dict[key]
+                        if mask_label:   # 마스크는 5개의 데이터가 있으므로
+                            num = num*5
+
+                    # young, middle, old로 나눌 때
+                    else:
+                        if int(age)>=60:
+                            key = gender +"_old"
+                        elif int(age)>=30:
+                            key = gender +"_middle"
+                        else:
+                            key = gender +"_young"
+                        num = self.balancing_dict[key]
+                        if mask_label:  # 마스크는 5개의 데이터가 있으므로
+                            num = num*5
+                    
+                    # 그 수를 확률적으로 반올림함
                     num = probablity_work(num)
 
+                    # 그 수 만큼 라벨에 추가.
                     for _ in range(num):
                         self.image_paths.append(img_path)
                         self.mask_labels.append(mask_label)
