@@ -182,7 +182,6 @@ class AgeLabels(int, Enum):
 
 
 class MaskBaseDataset(Dataset):
-    num_classes = 3 * 2 * 3
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -200,7 +199,9 @@ class MaskBaseDataset(Dataset):
     age_labels = []
 
 
-    def __init__(self, data_dir, balancing_option, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
@@ -220,6 +221,7 @@ class MaskBaseDataset(Dataset):
 
         self.setup()
         self.calc_statistics()
+        self.num_classes = num_classes
 
     def setup(self):
         # 폴더 list 받기
@@ -341,11 +343,13 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
     """
 
-    def __init__(self, data_dir, balancing_option, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
         self.balancing_dict = {}
-        super().__init__(data_dir, balancing_option, mean, std, val_ratio)
+        super().__init__(data_dir, balancing_option, num_classes, mean, std, val_ratio)
+
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
