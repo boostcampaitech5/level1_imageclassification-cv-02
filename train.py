@@ -204,6 +204,7 @@ def train(data_dir, model_dir, args):
     best_val_acc = 0
     best_val_loss = np.inf
     best_val_score = 0
+    early_stop = 0
     for epoch in range(args.epochs):
         # train loop
         model.train()
@@ -292,9 +293,15 @@ def train(data_dir, model_dir, args):
             #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
             #     best_val_acc = val_acc
             if val_score < best_val_score:
+                early_stop = 0
                 print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_score = val_score
+            else:
+                early_stop +=1
+                if early_stop > 5:
+                    print("Early Stopping")
+                    break
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
