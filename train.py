@@ -110,7 +110,7 @@ def train(data_dir, model_dir, args):
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
-        balancing_option = args.data_balancing
+        balancing_option = args.data_balancing,
         num_classes = num_classes
     )
  
@@ -341,6 +341,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
+    parser.add_argument('--data_balancing', type=str, default='imbalance', help="balance such as imbalance, generation, 10s (default: imbalance)")
+    parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -362,7 +364,7 @@ if __name__ == '__main__':
     parser.add_argument('--factor', type=float, default=0.5, help='mode used in ReduceLROnPlateau (default: 0.5)')
     parser.add_argument('--patience', type=int, default=4, help='mode used in ReduceLROnPlateau (default: 4)')
     parser.add_argument('--threshold', type=float, default=1e-4, help='mode used in ReduceLROnPlateau (default: 1e-4)')
-    parser.add_argument('--data_balancing', type=str, default='imbalance', help="balance such as imbalance, generation, 10s (default: imbalance)")
+
 
     # loss
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
