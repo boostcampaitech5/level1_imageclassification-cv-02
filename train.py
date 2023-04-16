@@ -349,7 +349,7 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
-    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1')
+    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
 
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
