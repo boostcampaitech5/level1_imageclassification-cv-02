@@ -305,14 +305,16 @@ def train(data_dir, model_dir, args):
             #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
             #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
             #     best_val_acc = val_acc
-            if val_score < best_val_score:
+            if val_score > best_val_score:
                 early_stop = 0
                 print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_score = val_score
             else:
                 early_stop +=1
-                if early_stop > 5:
+                if args.early_stopping_patience==-1:
+                    pass
+                elif early_stop > args.early_stopping_patience:
                     print("Early Stopping")
                     break
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
@@ -341,13 +343,14 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--data_balancing', type=str, default='imbalance', help="balance such as imbalance, generation, 10s (default: imbalance)")
+    parser.add_argument('--data_balancing', type=str, default='imbalance',choices=["imbalance","10s","gene"], help="balance such as imbalance, generation, 10s (default: imbalance)")
     parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
-    
+    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1')
+
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
