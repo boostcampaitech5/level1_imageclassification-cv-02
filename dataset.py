@@ -201,13 +201,14 @@ class MaskBaseDataset(Dataset):
 
 
 
-    def __init__(self, data_dir, balancing_option, num_classes=18, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, balancing_option, num_classes=18,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
 
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
         self.transform = None
+        self.category = category
 
         # balancing_option 에 따라 나누는 방법 선택
         # None : 안함, 10s : 10살 별로, generation : young, middle, old로
@@ -281,9 +282,18 @@ class MaskBaseDataset(Dataset):
         # 각각의 라벨들로 0~18의 라벨 만들기
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
 
+        if self.category=="multi":
+            label = multi_class_label
+        elif self.category =="age":
+            label = age_label
+        elif self.category == "gender":
+            label = gender_label
+        elif self.category =="mask":
+            label = mask_label
+
         # transform 적용
         image_transform = self.transform(image)
-        return image_transform, age_label
+        return image_transform, label
 
     def __len__(self):
         return len(self.image_paths)
