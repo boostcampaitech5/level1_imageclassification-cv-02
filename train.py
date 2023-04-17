@@ -319,7 +319,7 @@ def train(data_dir, model_dir, args):
                     pass
                 elif early_stop > args.early_stopping_patience:
                     print("Early Stopping")
-                    #break
+                    break
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
