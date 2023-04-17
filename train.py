@@ -197,9 +197,9 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
     elif args.scheduler == 'cycliclr':
-        scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
+        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
@@ -252,7 +252,8 @@ def train(data_dir, model_dir, args):
                 loss_value = 0
                 matches = 0
 
-        scheduler.step()
+        if args.scheduler != 'reducelronplateau':
+                scheduler.step()
 
         # val loop
         trues = []
@@ -325,6 +326,8 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/f1_score",val_score,epoch)
             logger.add_figure("results", figure, epoch)
             print()
+            if args.scheduler == 'reducelronplateau':
+                scheduler.step(val_loss)
     logger.close()
 
 if __name__ == '__main__':
@@ -351,7 +354,7 @@ if __name__ == '__main__':
 
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
+    parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
     parser.add_argument('--optimizer', type=str, default='sgd', help='optimizer such as sgd, momentum, adam, adagrad (default: sgd)')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum (default: 0.9)')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay (default: 5e-4)')
