@@ -110,7 +110,7 @@ def train(data_dir, model_dir, args):
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
-        balancing_option = args.data_balancing
+        balancing_option = args.data_balancing,
         num_classes = num_classes
     )
  
@@ -199,7 +199,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
     elif args.scheduler == 'cycliclr':
         scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
@@ -253,8 +253,10 @@ def train(data_dir, model_dir, args):
 
                 loss_value = 0
                 matches = 0
-
-        scheduler.step()
+        if args.scheduler == 'reducelronplateau':
+                scheduler.step(val_loss)
+        else:
+            scheduler.step()
 
         # val loop
         trues = []
@@ -305,7 +307,7 @@ def train(data_dir, model_dir, args):
             #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
             #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
             #     best_val_acc = val_acc
-            if val_score < best_val_score:
+            if val_score > best_val_score:
                 early_stop = 0
                 print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
