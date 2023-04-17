@@ -98,7 +98,7 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 class BaseAugmentation:
-    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+    def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
             Resize(resize),
             ToTensor(),
@@ -127,11 +127,11 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+    def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            Resize((320,256), Image.BILINEAR),
-            CenterCrop(resize),
-            # ColorJitter(0.05, 0.05, 0.05, 0.05),
+            CenterCrop((320, 256)),
+            Resize(resize, Image.BILINEAR),
+            ColorJitter(0.05, 0.05, 0.05, 0.05),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -144,6 +144,18 @@ class MaskLabels(int, Enum):
     MASK = 0
     INCORRECT = 1
     NORMAL = 2
+
+    @classmethod
+    def from_str(cls, value: str) -> int:
+        value = value.lower()
+        if "mask" in value:
+            return cls.MASK
+        elif value == "incorrect":
+            return cls.INCORRECT
+        elif value == "normal":
+            return cls.NORMAL
+        else:
+            raise ValueError(f"Mask value should be either 'mask1,2,3,4,5', 'incorrect' or 'normal', {value}")
 
 
 class GenderLabels(int, Enum):
@@ -167,22 +179,24 @@ class AgeLabels(int, Enum):
     OLD = 2
 
     @classmethod
-    def from_number(cls, value: str) -> int:
+    def from_number(cls, value: str, age_classes) -> int:
         try:
             value = int(value)
         except Exception:
             raise ValueError(f"Age value should be numeric, {value}")
 
-        if value < 30:
-            return cls.YOUNG
-        elif value < 60:
-            return cls.MIDDLE
-        else:
-            return cls.OLD
+        if age_classes == 3:
+            if value < 30:
+                return cls.YOUNG
+            elif value < 60:
+                return cls.MIDDLE
+            else:
+                return cls.OLD
+        elif age_classes ==6:
+            return value//10 -1
 
 
 class MaskBaseDataset(Dataset):
-    num_classes = 18
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -201,14 +215,13 @@ class MaskBaseDataset(Dataset):
 
 
 
-    def __init__(self, data_dir, balancing_option, num_classes=18,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, balancing_option, num_classes_list, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
 
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
         self.transform = None
-        self.category = category
 
         # balancing_option 에 따라 나누는 방법 선택
         # None : 안함, 10s : 10살 별로, generation : young, middle, old로
@@ -221,9 +234,10 @@ class MaskBaseDataset(Dataset):
         else:
             assert True, "check data balancing option"
 
+        self.num_classes_list = num_classes_list
         self.setup()
         self.calc_statistics()
-        self.num_classes = num_classes
+
 
     def setup(self):
         # 폴더 list 받기
@@ -280,20 +294,10 @@ class MaskBaseDataset(Dataset):
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         # 각각의 라벨들로 0~18의 라벨 만들기
-        multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
-
-        if self.category=="multi":
-            label = multi_class_label
-        elif self.category =="age":
-            label = age_label
-        elif self.category == "gender":
-            label = gender_label
-        elif self.category =="mask":
-            label = mask_label
-
+        multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label, self.num_classes_list)
         # transform 적용
         image_transform = self.transform(image)
-        return image_transform, label
+        return image_transform, age_label
 
     def __len__(self):
         return len(self.image_paths)
@@ -312,14 +316,14 @@ class MaskBaseDataset(Dataset):
         return Image.open(image_path)
 
     @staticmethod
-    def encode_multi_class(mask_label, gender_label, age_label) -> int:
-        return mask_label * 6 + gender_label * 3 + age_label
+    def encode_multi_class(mask_label, gender_label, age_label, num_classes_list) -> int:
+        return mask_label * num_classes_list[1]*num_classes_list[2] + gender_label * num_classes_list[2] + age_label
 
     @staticmethod
-    def decode_multi_class(multi_class_label) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
-        mask_label = (multi_class_label // 6) % 3
-        gender_label = (multi_class_label // 3) % 2
-        age_label = multi_class_label % 3
+    def decode_multi_class(multi_class_label, num_classes_list) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
+        mask_label = (multi_class_label // (num_classes_list[1]*num_classes_list[2])) % num_classes_list[0]
+        gender_label = (multi_class_label // num_classes_list[2]) % num_classes_list[1]
+        age_label = multi_class_label % num_classes_list[2]
         return mask_label, gender_label, age_label
 
     @staticmethod
@@ -355,11 +359,12 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
     """
 
 
-    def __init__(self, data_dir, balancing_option, num_classes,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, balancing_option, num_classes_list, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
         self.balancing_dict = {}
-        super().__init__(data_dir, balancing_option, num_classes, category, mean, std, val_ratio)
+        self.num_classes_list = []
+        super().__init__(data_dir, balancing_option, num_classes_list, mean, std, val_ratio)
 
 
     @staticmethod
@@ -399,12 +404,22 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     # 이미지 파일 path 만들기
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                     # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
-                    mask_label = self._file_names[_file_name]
+                    # --categori에 따라서 class 숫자를 조절
+                    if self.num_classes_list[0] == 1: mask_label =0
+                    elif self.num_classes_list[0] == 3: mask_label = MaskLabels.from_str(_file_name)
+                    else: raise ValueError(f"check --categoric of mask")
 
                     # 000004_male_Asian_54 -> 000004, male, Asian, 54
+                    # --categori에 따라서 class 숫자를 조절
                     id, gender, race, age = profile.split("_")
-                    gender_label = GenderLabels.from_str(gender)
-                    age_label = AgeLabels.from_number(age)
+                    if self.num_classes_list[1] == 1: gender_label=0
+                    elif self.num_classes_list[1] == 2: gender_label = GenderLabels.from_str(gender)
+                    else: raise ValueError(f"check --categoric of gender")
+                
+                    if self.num_classes_list[2] == 1: age_label = 0
+                    elif self.num_classes_list[2] == 3 or self.num_classes_list[2] == 6:
+                        age_label = AgeLabels.from_number(age, self.num_classes_list[2])
+                    else: raise ValueError(f"check --categoric of age")
 
                     # 밸런싱 안할 떄
                     if len(self.balancing_dict.keys()) == 0:
@@ -448,28 +463,15 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         # indice에 train, val 으로 해당하는 subset 분리
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
-class TestAugmentation:
-    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+
+class TestDataset(Dataset):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.img_paths = img_paths
         self.transform = Compose([
-            Resize(resize,Image.BILINEAR),
+            Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, transfrom=None, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
-        self.img_paths = img_paths
-        if transfrom:
-            self.transform = transfrom
-        else:
-            self.transform = Compose([
-                Resize(resize, Image.BILINEAR),
-                ToTensor(),
-                Normalize(mean=mean, std=std),
-            ])
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])

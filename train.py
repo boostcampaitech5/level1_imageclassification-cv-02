@@ -37,7 +37,7 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
-def grid_image(np_images, gts, preds, n=16, shuffle=False):
+def grid_image(np_images, gts, preds, num_classes_list, n=16, shuffle=False):
     batch_size = np_images.shape[0]
     assert n <= batch_size
 
@@ -50,8 +50,8 @@ def grid_image(np_images, gts, preds, n=16, shuffle=False):
         gt = gts[choice].item()
         pred = preds[choice].item()
         image = np_images[choice]
-        gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
-        pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
+        gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt, num_classes_list)
+        pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred, num_classes_list)
         title = "\n".join([
             f"{task} - gt: {gt_label}, pred: {pred_label}"
             for gt_label, pred_label, task
@@ -98,12 +98,10 @@ def train(data_dir, model_dir, args):
     # -- balancing_option
 
     # num_classes
-    if args.category == "multi":
-        num_classes = 18 # 18
-    elif args.category == "gender":
-        num_classes = 2
-    else:
-        num_classes = 3
+    num_classes_list = list(map(int, args.category[1:-1].split(",")))
+    print(num_classes_list)
+    num_classes = num_classes_list[0] * num_classes_list[1] * num_classes_list[2]
+
 
 
     # -- dataset
@@ -111,8 +109,7 @@ def train(data_dir, model_dir, args):
     dataset = dataset_module(
         data_dir=data_dir,
         balancing_option = args.data_balancing,
-        num_classes = num_classes,
-        category = args.category
+        num_classes_list = num_classes_list
     )
  
     # -- augmentation
@@ -200,9 +197,9 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
     elif args.scheduler == 'cycliclr':
-        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
+        scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
@@ -255,8 +252,7 @@ def train(data_dir, model_dir, args):
                 loss_value = 0
                 matches = 0
 
-        if args.scheduler != 'reducelronplateau':
-                scheduler.step()
+        scheduler.step()
 
         # val loop
         trues = []
@@ -288,7 +284,7 @@ def train(data_dir, model_dir, args):
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
                     figure = grid_image(
-                        inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
+                        inputs_np, labels, preds, num_classes_list, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
                     )
 
             val_score = f1_score(trues, predicts, average='macro')
@@ -329,8 +325,6 @@ def train(data_dir, model_dir, args):
             logger.add_scalar("Val/f1_score",val_score,epoch)
             logger.add_figure("results", figure, epoch)
             print()
-            if args.scheduler == 'reducelronplateau':
-                scheduler.step(val_loss)
     logger.close()
 
 if __name__ == '__main__':
@@ -352,12 +346,12 @@ if __name__ == '__main__':
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
-    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
+    parser.add_argument('--category',  type=str, default='[3,2,3]', help='[mask, gender, age] -> mask=1/3, gender=1/2, age=1/3/6, num is number of classes, but 1 mean not-class (default: [3,2,3])')
+    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, (default : 5)')
 
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
+    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--optimizer', type=str, default='sgd', help='optimizer such as sgd, momentum, adam, adagrad (default: sgd)')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum (default: 0.9)')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay (default: 5e-4)')
