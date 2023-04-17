@@ -159,5 +159,7 @@ if __name__ == '__main__':
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
-
-    inference(data_dir, model_dir, output_dir, args)
+    if args.ensemble:
+        ensemble_inference(data_dir, model_dir, output_dir, args)
+    else:
+        inference(data_dir, model_dir, output_dir, args)
