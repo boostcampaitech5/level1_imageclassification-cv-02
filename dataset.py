@@ -355,11 +355,11 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
     """
 
 
-    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, balancing_option, num_classes,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
         self.balancing_dict = {}
-        super().__init__(data_dir, balancing_option, num_classes, mean, std, val_ratio)
+        super().__init__(data_dir, balancing_option, num_classes, category, mean, std, val_ratio)
 
 
     @staticmethod
