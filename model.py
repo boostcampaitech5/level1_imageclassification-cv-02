@@ -139,10 +139,46 @@ class MaskEfficientNet_b4(nn.Module):
 
     #VIT
 
-class Mask_VIT(nn.Module):
+class MaskTinyVIT(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = timm.create_model('vit_base_patch8_224',num_classes =num_classes, pretrained=True)
+        self.backbone = timm.create_model('vit_tiny_patch16_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskSmallVIT(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('vit_small_patch16_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+    #MaskMobileNet
+    
+
+class MaskMobileNet_125(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('mobilevitv2_125',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
+class MaskMobileNet_150(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('mobilevitv2_150',num_classes =num_classes, pretrained=True)
         
 
     def forward(self, x):
