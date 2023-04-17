@@ -254,10 +254,8 @@ def train(data_dir, model_dir, args):
                 loss_value = 0
                 matches = 0
 
-        if args.scheduler == 'reducelronplateau':
-                scheduler.step(val_loss)
-        else:
-            scheduler.step()
+        if args.scheduler != 'reducelronplateau':
+                scheduler.step()
 
         # val loop
         trues = []
