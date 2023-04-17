@@ -201,7 +201,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'cosineannealinglr':
         scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
     elif args.scheduler == 'cycliclr':
-        scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
+        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
