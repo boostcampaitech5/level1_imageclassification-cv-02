@@ -199,7 +199,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
     elif args.scheduler == 'cycliclr':
         scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode, cycle_momentum=False)
     elif args.scheduler == 'reducelronplateau':
@@ -253,7 +253,10 @@ def train(data_dir, model_dir, args):
 
                 loss_value = 0
                 matches = 0
-        if args.scheduler != 'reducelronplateau':
+
+        if args.scheduler == 'reducelronplateau':
+                scheduler.step(val_loss)
+        else:
             scheduler.step()
 
         # val loop
