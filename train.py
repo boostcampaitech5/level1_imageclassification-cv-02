@@ -199,7 +199,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.etamin)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
     elif args.scheduler == 'cycliclr':
         scheduler = CyclicLR(optimizer, base_lr=args.baselr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode, cycle_momentum=False)
     elif args.scheduler == 'reducelronplateau':
@@ -253,7 +253,10 @@ def train(data_dir, model_dir, args):
 
                 loss_value = 0
                 matches = 0
-        if args.scheduler != 'reducelronplateau':
+
+        if args.scheduler == 'reducelronplateau':
+                scheduler.step(val_loss)
+        else:
             scheduler.step()
 
         # val loop
@@ -305,14 +308,16 @@ def train(data_dir, model_dir, args):
             #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
             #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
             #     best_val_acc = val_acc
-            if val_score < best_val_score:
+            if val_score > best_val_score:
                 early_stop = 0
                 print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_score = val_score
             else:
                 early_stop +=1
-                if early_stop > 5:
+                if args.early_stopping_patience==-1:
+                    pass
+                elif early_stop > args.early_stopping_patience:
                     print("Early Stopping")
                     #break
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
@@ -343,11 +348,14 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
+    parser.add_argument('--data_balancing', type=str, default='imbalance',choices=["imbalance","10s","gene"], help="balance such as imbalance, generation, 10s (default: imbalance)")
+    parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
-    
+    parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
+
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
@@ -361,12 +369,11 @@ if __name__ == '__main__':
     parser.add_argument('--tmax', type=int, default=5, help='tmax used in CyclicLR and CosineAnnealingLR (default: 5)')
     parser.add_argument('--maxlr', type=float, default=0.1, help='maxlr used in CyclicLR (default: 0.1)')
     parser.add_argument('--baselr', type=float, default=0.001, help='baselr used in CyclicLR (default: 0.001)')
-    parser.add_argument('--etamin', type=float, default=0.001, help='etamin used in CosineAnnealingLR (default: 0.001)')
     parser.add_argument('--mode', type=str, default='triangular', help='mode used in CyclicLR such as triangular, triangular2, exp_range (default: triangular)')
     parser.add_argument('--factor', type=float, default=0.5, help='mode used in ReduceLROnPlateau (default: 0.5)')
     parser.add_argument('--patience', type=int, default=4, help='mode used in ReduceLROnPlateau (default: 4)')
     parser.add_argument('--threshold', type=float, default=1e-4, help='mode used in ReduceLROnPlateau (default: 1e-4)')
-    parser.add_argument('--data_balancing', type=str, default='imbalance', help="balance such as imbalance, generation, 10s (default: imbalance)")
+
 
     # loss
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')

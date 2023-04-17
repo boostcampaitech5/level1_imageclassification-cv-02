@@ -98,7 +98,7 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 class BaseAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
             Resize(resize),
             ToTensor(),
@@ -127,11 +127,11 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.05, 0.05, 0.05, 0.05),
+            Resize((320,256), Image.BILINEAR),
+            CenterCrop(resize),
+            # ColorJitter(0.05, 0.05, 0.05, 0.05),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -182,6 +182,7 @@ class AgeLabels(int, Enum):
 
 
 class MaskBaseDataset(Dataset):
+    num_classes = 18
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -200,7 +201,7 @@ class MaskBaseDataset(Dataset):
 
 
 
-    def __init__(self, data_dir, balancing_option, num_classes, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, balancing_option, num_classes=18, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
 
         self.data_dir = data_dir
         self.mean = mean
@@ -437,15 +438,28 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         # indice에 train, val 으로 해당하는 subset 분리
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
-
-class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
-        self.img_paths = img_paths
+class TestAugmentation:
+    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
+            Resize(resize,Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+class TestDataset(Dataset):
+    def __init__(self, img_paths, resize, transfrom=None, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.img_paths = img_paths
+        if transfrom:
+            self.transform = transfrom
+        else:
+            self.transform = Compose([
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ])
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
