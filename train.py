@@ -199,9 +199,9 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'exponentiallr':
         scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=0.001)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.etamin)
     elif args.scheduler == 'cycliclr':
-        scheduler = CyclicLR(optimizer, base_lr=0.001, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode, cycle_momentum=False)
+        scheduler = CyclicLR(optimizer, base_lr=args.baselr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode, cycle_momentum=False)
     elif args.scheduler == 'reducelronplateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
@@ -314,7 +314,7 @@ def train(data_dir, model_dir, args):
                 early_stop +=1
                 if early_stop > 5:
                     print("Early Stopping")
-                    break
+                    #break
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
@@ -360,6 +360,8 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.5, help='learning rate scheduler gamma (default: 0.5)')
     parser.add_argument('--tmax', type=int, default=5, help='tmax used in CyclicLR and CosineAnnealingLR (default: 5)')
     parser.add_argument('--maxlr', type=float, default=0.1, help='maxlr used in CyclicLR (default: 0.1)')
+    parser.add_argument('--baselr', type=float, default=0.001, help='baselr used in CyclicLR (default: 0.001)')
+    parser.add_argument('--etamin', type=float, default=0.001, help='etamin used in CosineAnnealingLR (default: 0.001)')
     parser.add_argument('--mode', type=str, default='triangular', help='mode used in CyclicLR such as triangular, triangular2, exp_range (default: triangular)')
     parser.add_argument('--factor', type=float, default=0.5, help='mode used in ReduceLROnPlateau (default: 0.5)')
     parser.add_argument('--patience', type=int, default=4, help='mode used in ReduceLROnPlateau (default: 4)')
