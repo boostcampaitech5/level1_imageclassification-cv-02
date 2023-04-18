@@ -17,8 +17,8 @@ from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnne
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
-
-from dataset import MaskBaseDataset, mixup_collate_fn
+from torch.utils.data import Subset
+from dataset import MaskBaseDataset, mixup_collate_fn, MySubset
 from loss import create_criterion
 
 
@@ -116,16 +116,23 @@ def train(data_dir, model_dir, args):
     )
  
     # -- augmentation
-    transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
-    transform = transform_module(
+    train_transform_module = getattr(import_module("dataset"), args.augmentation)  # default: CustomAugmentation
+    val_transform_module = getattr(import_module("dataset"), "BaseAugmentation")
+    train_transform = train_transform_module(
         resize=args.resize,
         mean=dataset.mean,
         std=dataset.std,
     )
-    dataset.set_transform(transform)
+    val_transform = val_transform_module(
+        resize=args.resize,
+        mean=dataset.mean,
+        std=dataset.std,
+    )
 
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
+    train_set = MySubset(train_set, transform = train_transform)
+    val_set = MySubset(val_set, transform = val_transform)
 
     if args.mixup:
         collate_fn = mixup_collate_fn
@@ -235,7 +242,6 @@ def train(data_dir, model_dir, args):
             inputs, labels = train_batch
             inputs = inputs.to(device)
             labels = labels.to(device)
-
             optimizer.zero_grad()
 
             outs = model(inputs)
@@ -353,7 +359,7 @@ if __name__ == '__main__':
     
     # data
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
-    parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
+    parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='train data augmentation type (default: CustomAugmentation)')
     parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
