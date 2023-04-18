@@ -122,7 +122,7 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
                 else:
                     num_classes = 3
 
-                model = load_model(model_path, num_classes, device).to(device) #
+                model = load_model(model_path, num_classes, device).to(device) 
                 model.eval()
 
                 logit = model(images)
@@ -146,7 +146,6 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    # parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
     parser.add_argument("--augmentation", type=str, default="TestAugmentation" , help="select augmentation (default: TestAugmentation)")
     parser.add_argument("--ensemble", action='store_true', help="use ensemble inference")
