@@ -131,7 +131,7 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
             preds.extend(list(pred))
 
     info['ans'] = preds
-    save_path = os.path.join(output_dir, args.name_csv+".csv")
+    save_path = os.path.join(output_dir, 'output.csv')
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
 

@@ -272,7 +272,7 @@ def train(data_dir, model_dir, args):
 
                 loss_value = 0
                 matches = 0
-
+            
         if args.scheduler != 'reducelronplateau':
             scheduler.step()
 
@@ -297,7 +297,17 @@ def train(data_dir, model_dir, args):
                 trues += labels.detach().cpu().numpy().tolist()
                 predicts += preds.detach().cpu().numpy().tolist()
                 
-                loss_item = criterion(outs, labels).item()
+                if args.mixup:
+                    t = []
+                    for i in range(args.valid_batch_size):
+                        temp = torch.tensor([0]*num_classes)
+                        temp[labels[i]] = 1.0
+                        t.append(temp)
+                    labels = torch.stack(t).to(device).float()
+                    loss_item = criterion(outs, labels).item()
+                    labels = torch.argmax(labels,dim=-1)
+                else:
+                    loss_item = criterion(outs, labels).item()
                 acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
