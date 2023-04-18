@@ -9,10 +9,15 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 from dataset import TestDataset, MaskBaseDataset, CustomAugmentation
-
+import json
 
 def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("model"), args.model)
+    
+    config_path = os.path.join(saved_model, 'config.json')
+    with open(config_path, 'r') as f:
+        json_data = json.load(f)
+    
+    model_cls = getattr(import_module("model"), json_data["model"])  # config.json 에 있는 파일
     model = model_cls(
         num_classes=num_classes
     )
@@ -20,7 +25,6 @@ def load_model(saved_model, num_classes, device):
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
-
     model_path = os.path.join(saved_model, 'best.pth')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
@@ -96,9 +100,10 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
 
-    dirlist = sorted(os.listdir(model_dir))
     
-    print("Calculating inference results..")
+    dirlist = sorted(os.listdir(model_dir)) # ./model/exp
+    
+    print("Calculating inference results..") 
 
     preds = []
     with torch.no_grad():
@@ -111,13 +116,13 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
                 }
             
             for d in dirlist:
-                model_path = os.path.join(model_dir,d)
+                model_path = os.path.join(model_dir,d) # model_path 받기 Age,Mask,Gender
                 if "gender" in d.lower():
                     num_classes = 2
                 else:
                     num_classes = 3
 
-                model = load_model(model_path, num_classes, device).to(device)
+                model = load_model(model_path, num_classes, device).to(device) 
                 model.eval()
 
                 logit = model(images)
@@ -141,7 +146,6 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
     parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
     parser.add_argument("--augmentation", type=str, default="TestAugmentation" , help="select augmentation (default: TestAugmentation)")
     parser.add_argument("--ensemble", action='store_true', help="use ensemble inference")
