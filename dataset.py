@@ -129,8 +129,9 @@ class AddGaussianNoise(object):
 class CustomAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            Resize(resize),
-            RandomHorizontalFlip(p=0.5),
+            Resize((320,256), Image.BILINEAR),
+            CenterCrop(resize),
+            # ColorJitter(0.05, 0.05, 0.05, 0.05),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -272,7 +273,7 @@ class MaskBaseDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
-        #assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
+        assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
 
         image = self.read_image(index)
         mask_label = self.get_mask_label(index)
@@ -291,9 +292,8 @@ class MaskBaseDataset(Dataset):
             label = mask_label
 
         # transform 적용
-        if self.transform:
-            image = self.transform(image)
-        return image, label
+        image_transform = self.transform(image)
+        return image_transform, label
 
     def __len__(self):
         return len(self.image_paths)
@@ -499,7 +499,7 @@ def mixup_collate_fn(batch):
         num_classes = 3
     else:
         num_classes = 18
-
+ 
     if len(batch[0])==2:
         img = []
         label = []
@@ -514,14 +514,14 @@ def mixup_collate_fn(batch):
         img = torch.stack(img)
         label = torch.stack(label)
         shuffle_label = label[indice]
-
+        
         label = value * label + (1 - value) * shuffle_label
     else:
         img = torch.stack(batch)    
     shuffle_img = img[indice]
-
+    
     img = value * img + (1 - value) * shuffle_img
-
+    
     if len(batch[0])==2:
         return img, label
     else:
