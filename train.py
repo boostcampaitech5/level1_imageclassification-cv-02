@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 from torch.utils.data import Subset
-from dataset import MaskBaseDataset, MySubset
+from dataset import MaskBaseDataset, mixup_collate_fn, MySubset
 from loss import create_criterion
 
 
@@ -134,12 +134,19 @@ def train(data_dir, model_dir, args):
     train_set = MySubset(train_set, transform = train_transform)
     val_set = MySubset(val_set, transform = val_transform)
 
+    if args.mixup:
+        collate_fn = mixup_collate_fn
+        args.criterion = "bce"
+    else:
+        collate_fn = None
+
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
         num_workers=multiprocessing.cpu_count() // 2,
         shuffle=True,
         pin_memory=use_cuda,
+        collate_fn=collate_fn,
         drop_last=True,
     )
 
@@ -245,6 +252,10 @@ def train(data_dir, model_dir, args):
             optimizer.step()
 
             loss_value += loss.item()
+            # mixup 을 사용할 경우 label이 [0,0,1] 이런 binary 형태로 나오기 때문에
+            # argmax를 사용하여 가장 높은 값을 가진 label로 acc 측정
+            if labels.dim() > 1:
+                labels = torch.argmax(labels, dim=-1)
             matches += (preds == labels).sum().item()
             # interval 마다 loss, acc 계산
             if (idx + 1) % args.log_interval == 0:
@@ -262,7 +273,7 @@ def train(data_dir, model_dir, args):
                 matches = 0
 
         if args.scheduler != 'reducelronplateau':
-                scheduler.step()
+            scheduler.step()
 
         # val loop
         trues = []
@@ -355,6 +366,7 @@ if __name__ == '__main__':
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--data_balancing', type=str, default='imbalance',choices=["imbalance","10s","gene"], help="balance such as imbalance, generation, 10s (default: imbalance)")
     parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
+    parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')

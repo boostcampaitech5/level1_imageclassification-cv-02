@@ -480,20 +480,3 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
-
-class MySubset(Subset):
-    def __init__(self, subset,transform = None) -> None:
-        self.subset = subset
-        self.transform = transform
-
-    def __getitem__(self, idx):
-        x, y = self.subset[idx]
-        if self.transform:
-            x = self.transform(x)
-        return x,y 
-        # if isinstance(idx, list):
-        #     return self.subset[[self.indices[i] for i in idx]]
-        # return self.subset[self.indices[idx]]
-
-    def __len__(self):
-        return len(self.subset)
