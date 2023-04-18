@@ -480,3 +480,49 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+def mixup_collate_fn(batch):
+    """_summary_
+    Args:
+        batch (tensor): input
+    Returns:
+        _type_: mixup input
+    """
+    indice = torch.randperm(len(batch))
+    value = np.random.beta(0.2,0.2)
+    t = type(batch[0][1])
+    if t == AgeLabels:
+        num_classes = 3
+    elif t == GenderLabels:
+        num_classes = 2
+    elif t == MaskLabels:
+        num_classes = 3
+    else:
+        num_classes = 18
+
+    if len(batch[0])==2:
+        img = []
+        label = []
+        for a,b in batch:
+            temp = torch.tensor([0]*num_classes)
+            if num_classes==18:
+                temp[b] =1
+            else:
+                temp[b.value] = 1
+            img.append(a)
+            label.append(temp)
+        img = torch.stack(img)
+        label = torch.stack(label)
+        shuffle_label = label[indice]
+
+        label = value * label + (1 - value) * shuffle_label
+    else:
+        img = torch.stack(batch)    
+    shuffle_img = img[indice]
+
+    img = value * img + (1 - value) * shuffle_img
+
+    if len(batch[0])==2:
+        return img, label
+    else:
+        return img
