@@ -160,6 +160,43 @@ class MaskSmallVIT(nn.Module):
         x = self.backbone(x)
         
         return x
+    
+class MaskSwinSmallWindowVIT(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('swin_small_patch4_window7_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+    
+
+
+class MaskSwinSmallVIT(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('swin_s3_small_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+    
+
+class MaskSwinBaseVIT(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('swin_base_patch4_window7_224',num_classes =num_classes, pretrained=True)
+        
+
+    def forward(self, x):
+        x = self.backbone(x)
+        
+        return x
+
 
     #MaskMobileNet
     
