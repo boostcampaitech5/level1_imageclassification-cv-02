@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
-from dataset import MaskBaseDataset, mixup_collate_fn, MySubset
+from dataset import MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
 from loss import create_criterion
 
 
@@ -113,6 +113,9 @@ def train(data_dir, model_dir, args):
         balancing_option = args.data_balancing,
         num_classes = num_classes,
         category = args.category,
+
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
         val_ratio = args.val_ratio
     )
  
@@ -362,6 +365,343 @@ def train(data_dir, model_dir, args):
                 scheduler.step(val_score)
     logger.close()
 
+def ktrain(data_dir, model_dir, args):
+    from collections import defaultdict
+    from dataset import MaskLabels, AgeLabels, GenderLabels
+    from sklearn.model_selection import StratifiedKFold
+    seed_everything(args.seed)
+
+    save_dir = increment_path(os.path.join(model_dir, args.name))
+
+    # -- settings
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+
+    # num_classes
+    if args.category == "multi":
+        num_classes = 18 # 18
+    elif args.category == "gender":
+        num_classes = 2
+    else:
+        num_classes = 3
+    
+    _file_names = {
+        "mask1": MaskLabels.MASK,
+        "mask2": MaskLabels.MASK,
+        "mask3": MaskLabels.MASK,
+        "mask4": MaskLabels.MASK,
+        "mask5": MaskLabels.MASK,
+        "incorrect_mask": MaskLabels.INCORRECT,
+        "normal": MaskLabels.NORMAL
+    }
+    # -- augmentation
+    train_transform_module = getattr(import_module("dataset"), args.augmentation)  # default: CustomAugmentation
+    val_transform_module = getattr(import_module("dataset"), "BaseAugmentation")
+    train_transform = train_transform_module(
+        resize=args.resize,
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
+    )
+    val_transform = val_transform_module(
+        resize=args.resize,
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
+    )
+
+    # -- dataset
+    image_paths = []
+    labels = []
+    skf = StratifiedKFold(n_splits=args.kfold, shuffle=False)
+    profiles = os.listdir(data_dir)
+    # data_dir 에서 "."으로 시작하지 않는 폴더 리스트 저장 
+    profiles = [profile for profile in profiles if not profile.startswith(".")]
+
+    if args.category=="mask":
+        for profile in profiles:
+            # img_folder == 000004_male_Asian_54 
+            img_folder = os.path.join(args.data_dir, profile)
+            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg]
+            for file_name in os.listdir(img_folder):
+                # 확장자 제거
+                _file_name, ext = os.path.splitext(file_name)
+                if _file_name not in _file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                    continue
+
+                img_path = os.path.join(args.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
+                mask_label = _file_names[_file_name]
+
+                image_paths.append(img_path)
+                labels.append(mask_label)
+        
+        make_kfold = skf.split(image_paths, labels)
+        
+    else:
+        # label을 찾아 그에 맞는 kfold
+        temp_label = []
+        for p in profiles:
+            id, gender, race, age = p.split("_")
+            if args.category == 'age':
+                temp_label.append(AgeLabels.from_number(age))
+            else:
+                temp_label.append(GenderLabels.from_str(gender))
+        
+        make_kfold = skf.split(profiles,temp_label)
+        
+    for k,(train_index, val_index) in enumerate(make_kfold):
+        if args.category =="mask":
+            train_imgs = [image_paths[i] for i in train_index]
+            train_labels = [labels[i] for i in train_index]
+            val_imgs = [image_paths[i] for i in val_index]
+            val_labels = [labels[i] for i in val_index]
+        else:
+            train_p = [profiles[i] for i in train_index]
+            val_p = [profiles[i] for i in val_index]
+
+            train_imgs = []
+            train_labels =[]
+            val_imgs = []
+            val_labels = []
+            for profile in train_p:
+                id, gender, race, age = profile.split("_")
+                age = AgeLabels.from_number(age)
+                gender = GenderLabels.from_str(gender)
+                img_folder = os.path.join(args.data_dir, profile)
+                for file_name in os.listdir(img_folder):
+                    _file_name, ext = os.path.splitext(file_name)
+                    if _file_name not in _file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                        continue
+
+                    img_path = os.path.join(args.data_dir, profile, file_name)
+                    train_imgs.append(img_path)
+                    if args.category == "age":
+                        train_labels.append(age)
+                    else:
+                        train_labels.append(gender)
+            
+            for profile in val_p:
+                id, gender, race, age = profile.split("_")
+                age = AgeLabels.from_number(age)
+                gender = GenderLabels.from_str(gender)
+                img_folder = os.path.join(args.data_dir, profile)
+                for file_name in os.listdir(img_folder):
+                    _file_name, ext = os.path.splitext(file_name)
+                    if _file_name not in _file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                        continue
+
+                    img_path = os.path.join(args.data_dir, profile, file_name)
+                    val_imgs.append(img_path)
+                    if args.category == "age":
+                        val_labels.append(age)
+                    else:
+                        val_labels.append(gender)
+
+        train_set = CustomDataset(train_imgs,train_labels,transform=train_transform)
+        val_set = CustomDataset(val_imgs,val_labels,transform=val_transform)
+
+
+        if args.mixup:
+            collate_fn = mixup_collate_fn
+            args.criterion = "bce"
+        else:
+            collate_fn = None
+
+        train_loader = DataLoader(
+            train_set,
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            shuffle=True,
+            pin_memory=use_cuda,
+            collate_fn=collate_fn,
+            drop_last=True,
+        )
+
+        val_loader = DataLoader(
+            val_set,
+            batch_size=args.valid_batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            shuffle=False,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
+        # -- model
+        model_module = getattr(import_module("model"), args.model)  # default: BaseModel
+        model = model_module(
+            num_classes=num_classes
+        ).to(device)
+        model = torch.nn.DataParallel(model)
+
+        # -- loss & metric
+        criterion = create_criterion(args.criterion)  # default: cross_entropy
+ 
+        if args.optimizer == 'sgd':
+            optimizer = SGD(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                lr=args.lr,
+                weight_decay=args.weight_decay
+            )
+        elif args.optimizer == 'momentum':
+            optimizer = SGD(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                lr=args.lr,
+                momentum=args.momentum,
+                weight_decay=args.weight_decay,
+                nesterov=True
+            )
+        elif args.optimizer == 'adagrad':
+            optimizer = Adagrad(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                lr=args.lr,
+                weight_decay=args.weight_decay
+            )
+        elif args.optimizer == 'adam':
+            optimizer = Adam(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                lr=args.lr,
+                weight_decay=args.weight_decay
+            )
+        else:
+            raise NotImplementedError(
+                f"Unsupported optimizer: {args.optimizer}\nPlease enter either sgd, momentum, adagrad, or adam as the optimizer."
+            )
+
+        if args.scheduler == 'steplr':    
+            scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
+        elif args.scheduler == 'lambdalr':
+            scheduler = LambdaLR(optimizer, lr_lambda = lambda epoch : 0.95 ** epoch)
+        elif args.scheduler == 'exponentiallr':
+            scheduler = ExponentialLR(optimizer, gamma=args.gamma)
+        elif args.scheduler == 'cosineannealinglr':
+            scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
+        elif args.scheduler == 'cycliclr':
+            scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
+        elif args.scheduler == 'reducelronplateau':
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
+        else:
+            raise NotImplementedError(
+                f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
+            )
+        
+        # -- logging
+        save_dir = increment_path(os.path.join(model_dir, args.name+f"_{k+1}fold"))
+        logger = SummaryWriter(log_dir=save_dir)
+        with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
+            json.dump(vars(args), f, ensure_ascii=False, indent=4)
+
+        best_val_acc = 0
+        best_val_loss = np.inf
+        best_val_score = 0
+        early_stop = 0
+        for epoch in range(args.epochs):
+            # train loop
+            model.train()
+            loss_value = 0
+            matches = 0
+            for idx, train_batch in enumerate(train_loader):
+                inputs, labels = train_batch
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                optimizer.zero_grad()
+
+                outs = model(inputs)
+                preds = torch.argmax(outs, dim=-1)
+                loss = criterion(outs, labels)
+
+                loss.backward()
+                optimizer.step()
+
+                loss_value += loss.item()
+                # mixup 을 사용할 경우 label이 [0,0,1] 이런 binary 형태로 나오기 때문에
+                # argmax를 사용하여 가장 높은 값을 가진 label로 acc 측정
+                if labels.dim() > 1:
+                    labels = torch.argmax(labels, dim=-1)
+                matches += (preds == labels).sum().item()
+                # interval 마다 loss, acc 계산
+                if (idx + 1) % args.log_interval == 0:
+                    train_loss = loss_value / args.log_interval
+                    train_acc = matches / args.batch_size / args.log_interval
+                    current_lr = get_lr(optimizer)
+                    print(
+                        f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
+                        f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
+                    )
+                    logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
+                    logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
+
+                    loss_value = 0
+                    matches = 0
+                
+            if args.scheduler != 'reducelronplateau':
+                scheduler.step()
+
+            # val loop
+            trues = []
+            predicts = []
+            with torch.no_grad():
+                print("Calculating validation results...")
+                model.eval()
+                val_loss_items = []
+                val_acc_items = []
+                figure = None
+                for val_batch in val_loader:
+                    inputs, labels = val_batch
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
+
+                    outs = model(inputs)
+                    preds = torch.argmax(outs, dim=-1)
+
+                    # f1_score를 위한 label, predict 저장
+                    trues += labels.detach().cpu().numpy().tolist()
+                    predicts += preds.detach().cpu().numpy().tolist()
+                    
+                    if args.mixup:
+                        t = []
+                        for i in range(args.valid_batch_size):
+                            temp = torch.tensor([0]*num_classes)
+                            temp[labels[i]] = 1.0
+                            t.append(temp)
+                        labels = torch.stack(t).to(device).float()
+                        loss_item = criterion(outs, labels).item()
+                        labels = torch.argmax(labels,dim=-1)
+                    else:
+                        loss_item = criterion(outs, labels).item()
+                    acc_item = (labels == preds).sum().item()
+                    val_loss_items.append(loss_item)
+                    val_acc_items.append(acc_item)
+
+                val_score = f1_score(trues, predicts, average='macro')
+                val_loss = np.sum(val_loss_items) / len(val_loader)
+                val_acc = np.sum(val_acc_items) / len(val_set)
+                best_val_acc = max(best_val_acc, val_acc)
+
+                if val_score > best_val_score:
+                    early_stop = 0
+                    print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
+                    torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                    best_val_score = val_score
+                else:
+                    early_stop +=1
+                    if args.early_stopping_patience==-1:
+                        pass
+                    elif early_stop > args.early_stopping_patience:
+                        print("Early Stopping")
+                        break
+                torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+                print(
+                    f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
+                    f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
+                )
+                logger.add_scalar("Val/loss", val_loss, epoch)
+                logger.add_scalar("Val/accuracy", val_acc, epoch)
+                logger.add_scalar("Val/f1_score",val_score,epoch)
+                print()
+                if args.scheduler == 'reducelronplateau':
+                    scheduler.step(val_loss)
+        logger.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -379,6 +719,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_balancing', type=str, default='imbalance',choices=["imbalance","10s","gene"], help="balance such as imbalance, generation, 10s (default: imbalance)")
     parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
+    parser.add_argument('--kfold', type=int, help="using Kfold k")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -390,7 +731,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
     parser.add_argument('--optimizer', type=str, default='sgd', help='optimizer such as sgd, momentum, adam, adagrad (default: sgd)')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum (default: 0.9)')
-    parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay (default: 5e-4)')
+    parser.add_argument('--weight_decay', type=float, default=0.01, help='weight decay (default: 0.01)')
     
     # scheduler
     parser.add_argument('--scheduler', type=str, default='steplr', help='scheduler such as steplr, lambdalr, exponentiallr, cycliclr, reducelronplateau etc. (default: steplr)')
@@ -419,5 +760,7 @@ if __name__ == '__main__':
 
     data_dir = args.data_dir
     model_dir = args.model_dir
-
-    train(data_dir, model_dir, args)
+    if args.kfold:
+        ktrain(data_dir, model_dir, args)
+    else:
+        train(data_dir, model_dir, args)
