@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
+import torch.nn as nn
 
 from dataset import TestDataset, MaskBaseDataset, CustomAugmentation
 import json
@@ -128,6 +129,7 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
                 model.eval()
 
                 logit = model(images)
+                logit = nn.functional.softmax(logit,dim=-1)
                 vote[d.split("_")[0]] += logit.cpu().numpy()
             
             age = np.argmax(vote['age'],axis=-1)
