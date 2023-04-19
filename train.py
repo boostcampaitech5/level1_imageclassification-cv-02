@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler, SubsetRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
@@ -22,6 +22,23 @@ from dataset import MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
 from loss import create_criterion
 from collections import Counter
 
+def rand_bbox(size, lam):
+    W = size[2]
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -95,9 +112,6 @@ def train(data_dir, model_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-
-    # -- balancing_option
-
     # num_classes
     if args.category == "multi":
         num_classes = 18 # 18
@@ -106,7 +120,6 @@ def train(data_dir, model_dir, args):
     else:
         num_classes = 3
 
-
     # -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
@@ -114,8 +127,8 @@ def train(data_dir, model_dir, args):
         balancing_option = args.data_balancing,
         num_classes = num_classes,
         category = args.category,
-        mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232)
+        mean = (0.485, 0.456, 0.406),
+        std = (0.229, 0.224, 0.225)
     )
  
     # -- augmentation
@@ -248,9 +261,23 @@ def train(data_dir, model_dir, args):
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
+            if args.cutmix:
+                # generate mixed sample
+                lam = np.random.beta(1.0, 1.0)
+                rand_index = torch.randperm(inputs.size()[0]).to(device)
+                labels_a = labels
+                labels_b = labels[rand_index]
+                bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam)
+                inputs[:, :, bbx1:bbx2, bby1:bby2] = inputs[rand_index, :, bbx1:bbx2, bby1:bby2]
+                # adjust lambda to exactly match pixel ratio
+                lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (inputs.size()[-1] * inputs.size()[-2]))
+                # compute output
+                outs = model(inputs)
+                loss = criterion(outs, labels_a) * lam + criterion(outs, labels_b) * (1. - lam)
+            else:
+                outs = model(inputs)
+                loss = criterion(outs, labels)
             preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
 
             loss.backward()
             optimizer.step()
@@ -748,6 +775,7 @@ if __name__ == '__main__':
     parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
     parser.add_argument('--kfold', type=int, help="using Kfold k")
     parser.add_argument('--weightsampler', action='store_true', help="using torch WeightedRamdomSampling")
+    parser.add_argument('--cutmix', action='store_true', help='use cutmix')
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
