@@ -114,7 +114,8 @@ def train(data_dir, model_dir, args):
         num_classes = num_classes,
         category = args.category,
         mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232)
+        std = (0.61664625, 0.58719909, 0.56828232),
+        val_ratio = args.val_ratio
     )
  
     # -- augmentation
@@ -169,7 +170,7 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    criterion = create_criterion(args.criterion)  # default: cross_entropy
+    criterion = create_criterion(args.criterion,num_classes)  # default: cross_entropy
     '''
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
