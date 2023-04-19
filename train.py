@@ -407,7 +407,7 @@ def ktrain(data_dir, model_dir, args):
 
     # -- dataset
     image_paths = []
-    labels = []
+    image_labels = []
     # kfold 정의
     skf = StratifiedKFold(n_splits=args.kfold, shuffle=False)
     profiles = os.listdir(data_dir)
@@ -431,9 +431,9 @@ def ktrain(data_dir, model_dir, args):
                 mask_label = _file_names[_file_name]
 
                 image_paths.append(img_path)
-                labels.append(mask_label)
+                image_labels.append(mask_label)
         # 마스크기준 kfold
-        make_kfold = skf.split(image_paths, labels)
+        make_kfold = skf.split(image_paths, image_labels)
         
     else:
         # label을 찾아 그에 맞는 kfold
@@ -459,9 +459,9 @@ def ktrain(data_dir, model_dir, args):
             # [1,2,5,6,7,8,9,10] [3,4]
             # [3,4,5,6,7,8,9,10] [1,2]
             train_imgs = [image_paths[i] for i in train_index]
-            train_labels = [labels[i] for i in train_index]
+            train_labels = [image_labels[i] for i in train_index]
             val_imgs = [image_paths[i] for i in val_index]
-            val_labels = [labels[i] for i in val_index]
+            val_labels = [image_labels[i] for i in val_index]
         else:
             # 사람별 이미지 폴더에서 train set에 해당하는 index 저장
             train_p = [profiles[i] for i in train_index]
@@ -508,7 +508,6 @@ def ktrain(data_dir, model_dir, args):
 
         train_set = CustomDataset(train_imgs,train_labels,transform=train_transform)
         val_set = CustomDataset(val_imgs,val_labels,transform=val_transform)
-
 
         if args.mixup:
             collate_fn = mixup_collate_fn
