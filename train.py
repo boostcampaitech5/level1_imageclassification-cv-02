@@ -112,7 +112,9 @@ def train(data_dir, model_dir, args):
         data_dir=data_dir,
         balancing_option = args.data_balancing,
         num_classes = num_classes,
-        category = args.category
+        category = args.category,
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
     )
  
     # -- augmentation
@@ -133,7 +135,7 @@ def train(data_dir, model_dir, args):
     train_set, val_set = dataset.split_dataset()
     train_set = MySubset(train_set, transform = train_transform)
     val_set = MySubset(val_set, transform = val_transform)
-    
+
     if args.mixup:
         collate_fn = mixup_collate_fn
         args.criterion = "bce"
@@ -218,7 +220,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'cycliclr':
         scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
         raise NotImplementedError(
             f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
@@ -358,7 +360,7 @@ def train(data_dir, model_dir, args):
             logger.add_figure("results", figure, epoch)
             print()
             if args.scheduler == 'reducelronplateau':
-                scheduler.step(val_loss)
+                scheduler.step(val_score)
     logger.close()
 
 if __name__ == '__main__':
