@@ -89,6 +89,8 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
     )
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
@@ -136,7 +138,7 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
             preds.extend(list(pred))
 
     info['ans'] = preds
-    save_path = os.path.join(output_dir, 'output.csv')
+    save_path = os.path.join(output_dir, args.name_csv+".csv")
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
 
@@ -147,7 +149,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
-    parser.add_argument("--augmentation", type=str, default="TestAugmentation" , help="select augmentation (default: TestAugmentation)")
+    parser.add_argument("--augmentation", type=str, default="BaseAugmentation" , help="select augmentation (default: BaseAugmentation)")
     parser.add_argument("--ensemble", action='store_true', help="use ensemble inference")
 
     # Container environment
