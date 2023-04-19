@@ -364,7 +364,6 @@ def train(data_dir, model_dir, args):
     logger.close()
 
 def ktrain(data_dir, model_dir, args):
-    from collections import defaultdict
     from dataset import MaskLabels, AgeLabels, GenderLabels
     from sklearn.model_selection import StratifiedKFold
     seed_everything(args.seed)
@@ -409,6 +408,7 @@ def ktrain(data_dir, model_dir, args):
     # -- dataset
     image_paths = []
     labels = []
+    # kfold 정의
     skf = StratifiedKFold(n_splits=args.kfold, shuffle=False)
     profiles = os.listdir(data_dir)
     # data_dir 에서 "."으로 시작하지 않는 폴더 리스트 저장 
@@ -416,43 +416,54 @@ def ktrain(data_dir, model_dir, args):
 
     if args.category=="mask":
         for profile in profiles:
-            # img_folder == 000004_male_Asian_54 
+            # img_folder == inputs/train/image/000004_male_Asian_54 
             img_folder = os.path.join(args.data_dir, profile)
-            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg]
+            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg ...]
             for file_name in os.listdir(img_folder):
-                # 확장자 제거
+                # 확장자 제거, _file_name = mask1, ext=.jpg
                 _file_name, ext = os.path.splitext(file_name)
                 if _file_name not in _file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
-
+                
+                # img_path = inputs/train/image/000004_male_Asian_54/mask1.jpg
                 img_path = os.path.join(args.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
-                # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
+                # 위 _file_names dict에서 해당하는 라벨 찾기 - > mask1
                 mask_label = _file_names[_file_name]
 
                 image_paths.append(img_path)
                 labels.append(mask_label)
-        
+        # 마스크기준 kfold
         make_kfold = skf.split(image_paths, labels)
         
     else:
         # label을 찾아 그에 맞는 kfold
         temp_label = []
         for p in profiles:
+            # p = 000004_male_Asian_54
             id, gender, race, age = p.split("_")
             if args.category == 'age':
                 temp_label.append(AgeLabels.from_number(age))
             else:
                 temp_label.append(GenderLabels.from_str(gender))
         
+        # 사람별 kfold
         make_kfold = skf.split(profiles,temp_label)
-        
+    
     for k,(train_index, val_index) in enumerate(make_kfold):
         if args.category =="mask":
+            # 전체 이미지에서 train set 에 해당하는 index만 train_imgs 로 저장
+            # train_list = [img1,img2,img3...img10]
+            # [1,2,3,4,5,6,7,8] [9,10]
+            # [1,2,3,4,5,6,9,10] [7,8]
+            # [1,2,3,4,7,8,9,10] [5,6]
+            # [1,2,5,6,7,8,9,10] [3,4]
+            # [3,4,5,6,7,8,9,10] [1,2]
             train_imgs = [image_paths[i] for i in train_index]
             train_labels = [labels[i] for i in train_index]
             val_imgs = [image_paths[i] for i in val_index]
             val_labels = [labels[i] for i in val_index]
         else:
+            # 사람별 이미지 폴더에서 train set에 해당하는 index 저장
             train_p = [profiles[i] for i in train_index]
             val_p = [profiles[i] for i in val_index]
 
@@ -460,6 +471,7 @@ def ktrain(data_dir, model_dir, args):
             train_labels =[]
             val_imgs = []
             val_labels = []
+            # 폴더안의 7개의 이미지를 train_imgs에 저장
             for profile in train_p:
                 id, gender, race, age = profile.split("_")
                 age = AgeLabels.from_number(age)
@@ -689,7 +701,7 @@ def ktrain(data_dir, model_dir, args):
                         break
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
                 print(
-                    f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
+                    f"{k} [Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
                     f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
                 )
                 logger.add_scalar("Val/loss", val_loss, epoch)
