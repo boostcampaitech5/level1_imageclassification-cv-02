@@ -129,6 +129,8 @@ def train(data_dir, model_dir, args):
         category = args.category,
         mean = (0.485, 0.456, 0.406),
         std = (0.229, 0.224, 0.225)
+
+        val_ratio = args.val_ratio
     )
  
     # -- augmentation
@@ -183,7 +185,7 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    criterion = create_criterion(args.criterion)  # default: cross_entropy
+    criterion = create_criterion(args.criterion,num_classes)  # default: cross_entropy
     '''
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
@@ -234,7 +236,7 @@ def train(data_dir, model_dir, args):
     elif args.scheduler == 'cycliclr':
         scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
     elif args.scheduler == 'reducelronplateau':
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=args.factor, patience=args.patience, threshold=args.threshold )
     else:
         raise NotImplementedError(
             f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
@@ -388,7 +390,7 @@ def train(data_dir, model_dir, args):
             logger.add_figure("results", figure, epoch)
             print()
             if args.scheduler == 'reducelronplateau':
-                scheduler.step(val_loss)
+                scheduler.step(val_score)
     logger.close()
 
 def ktrain(data_dir, model_dir, args):

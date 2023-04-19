@@ -510,7 +510,7 @@ def mixup_collate_fn(batch):
         _type_: mixup input
     """
     indice = torch.randperm(len(batch))
-    value = np.random.beta(0.2,0.2)
+    value = np.random.beta(0.1,0.1)
     t = type(batch[0][1])
     if t == AgeLabels:
         num_classes = 3
