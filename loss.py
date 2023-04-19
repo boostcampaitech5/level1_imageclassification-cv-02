@@ -92,7 +92,8 @@ _criterion_entrypoints = {
     'focal': FocalLoss,
     'label_smoothing': LabelSmoothingLoss,
     'f1': F1Loss,
-    'bce': nn.BCEWithLogitsLoss
+    'bce': nn.BCEWithLogitsLoss,
+    'arcface': ArcFaceLoss
 }
 
 
