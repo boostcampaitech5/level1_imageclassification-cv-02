@@ -14,12 +14,13 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
 from loss import create_criterion
+from collections import Counter
 
 
 def seed_everything(seed):
@@ -514,16 +515,33 @@ def ktrain(data_dir, model_dir, args):
             args.criterion = "bce"
         else:
             collate_fn = None
+        
+        # 클래스별 개수를 구하여 sampling
+        class_counts = Counter(train_labels)
+        if args.weightsampler:
+            weights = torch.DoubleTensor([1./class_counts[i] for i in train_labels])
+            weight_sampler = WeightedRandomSampler(weights,len(train_labels))
+            train_loader = DataLoader(
+                train_set,
+                batch_size=args.batch_size,
+                num_workers=multiprocessing.cpu_count() // 2,
+                sampler = weight_sampler,
+                shuffle=False,
+                pin_memory=use_cuda,
+                collate_fn=collate_fn,
+                drop_last=True,
+            )
+        else:
+            train_loader = DataLoader(
+                train_set,
+                batch_size=args.batch_size,
+                num_workers=multiprocessing.cpu_count() // 2,
+                shuffle=True,
+                pin_memory=use_cuda,
+                collate_fn=collate_fn,
+                drop_last=True,
+            )
 
-        train_loader = DataLoader(
-            train_set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=True,
-            pin_memory=use_cuda,
-            collate_fn=collate_fn,
-            drop_last=True,
-        )
 
         val_loader = DataLoader(
             val_set,
@@ -729,6 +747,7 @@ if __name__ == '__main__':
     parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
     parser.add_argument('--kfold', type=int, help="using Kfold k")
+    parser.add_argument('--weightsampler', action='store_true', help="using torch WeightedRamdomSampling")
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
