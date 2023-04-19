@@ -21,7 +21,28 @@ class FocalLoss(nn.Module):
             weight=self.weight,
             reduction=self.reduction
         )
+    
+class ArcFaceLoss(nn.Module):
+    def __init__(self, num_classes,scale=30.0, margin=0.5):
+        super(ArcFaceLoss, self).__init__()
+        self.num_classes = num_classes
+        # feat_dim 은 마지막 레이어의 출력 크기
+        self.feat_dim = num_classes
+        self.scale = scale
+        self.margin = margin
+        self.weights = nn.Parameter(torch.Tensor(num_classes, num_classes))
+        nn.init.xavier_uniform_(self.weights)
 
+    def forward(self, features, targets):
+        cosine = F.linear(F.normalize(features), F.normalize(self.weights))
+        sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
+        phi = cosine * self.cos_m - sine * self.sin_m
+        one_hot = torch.zeros(cosine.size(), device=features.device)
+        one_hot.scatter_(1, targets.view(-1, 1).long(), 1)
+        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        output *= self.scale
+        loss = F.cross_entropy(output, targets)
+        return loss.mean()
 
 class LabelSmoothingLoss(nn.Module):
     def __init__(self, classes=3, smoothing=0.0, dim=-1):
@@ -70,7 +91,8 @@ _criterion_entrypoints = {
     'cross_entropy': nn.CrossEntropyLoss,
     'focal': FocalLoss,
     'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss
+    'f1': F1Loss,
+    'bce': nn.BCEWithLogitsLoss
 }
 
 

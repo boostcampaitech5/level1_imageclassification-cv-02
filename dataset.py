@@ -8,7 +8,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop,\
+ColorJitter, RandomRotation, RandomHorizontalFlip
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -16,14 +17,105 @@ IMG_EXTENSIONS = [
 ]
 
 
+# 확률적 반올림 함수
+# 실수를 확률적으로 정수로 바꿈 ex) 3.7 -> 30퍼 확률로 3, 70퍼 확률로 4
+def probablity_work(num):
+    if num-int(num) > np.random.uniform(0,1,1)[0]:
+        return int(num)+1
+    else:
+        return int(num)
+    
+
+# 나이(10살 단위로), 성별로 데이터 밸런스를 맞춰주기 위한 dict
+def balancing_10s_dict(data_dir):
+    dic = {
+        "male_10" : 0,
+        "male_20" : 0,
+        "male_30" : 0,
+        "male_40" : 0,
+        "male_50" : 0,
+        "male_60" : 0,
+        "female_10" : 0,
+        "female_20" : 0,
+        "female_30" : 0,
+        "female_40" : 0,
+        "female_50" : 0,
+        "female_60" : 0,  
+        }
+    
+    # 각 집단의 수를 구함
+    profiles = os.listdir(data_dir)
+    for profile in profiles:
+        if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
+            continue
+        id, gender, race, age = profile.split("_")
+        key = gender.lower()+"_"+str(int(age)//10 *10)
+        dic[key] += 1
+        max_value = max(dic.values())
+
+    # 밸런싱
+    for key_ in dic.keys():
+        dic[key_] = max_value / dic[key_]
+    
+    return dic
+
+
+# 나이(3 그룹으로), 성별로 데이터 밸런스를 맞춰주기 위한 dict
+def balancing_gene_dict(data_dir):
+    dic = {
+        "male_young" : 0,
+        "male_middle" : 0,
+        "male_old" : 0,
+        "female_young" : 0,
+        "female_middle" : 0,
+        "female_old" : 0,
+        }
+    # 각 집단의 수를 구함
+    profiles = os.listdir(data_dir)
+    for profile in profiles:
+        if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
+            continue
+        id, gender, race, age = profile.split("_")
+        age = int(age)
+        if age >= 60:
+            age = "old"
+        elif age >= 30:
+            age = "middle"
+        else:
+            age = "young"
+
+        key = gender.lower()+"_"+age
+        dic[key] += 1
+        max_value = max(dic.values())
+    # 밸런싱
+    for key_ in dic.keys():
+        dic[key_] = max_value / dic[key_]
+    
+    return dic
+
+
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-
 class BaseAugmentation:
-    def __init__(self, resize, mean, std, **args):
+    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
+            CenterCrop((360,270)),
+            Resize(resize),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+class CustomAugmentation:
+    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+        self.transform = Compose([
+            CenterCrop((360,270)),
+            Resize(resize),
+            RandomHorizontalFlip(p=0.5),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -47,21 +139,6 @@ class AddGaussianNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
 
 
 class MaskLabels(int, Enum):
@@ -99,14 +176,14 @@ class AgeLabels(int, Enum):
 
         if value < 30:
             return cls.YOUNG
-        elif value < 60:
+        elif value < 59:
             return cls.MIDDLE
         else:
             return cls.OLD
 
 
 class MaskBaseDataset(Dataset):
-    num_classes = 3 * 2 * 3
+    num_classes = 18
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -123,31 +200,52 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+
+    def __init__(self, data_dir, balancing_option, num_classes=18,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
-
         self.transform = None
+        self.category = category
+
+        # balancing_option 에 따라 나누는 방법 선택
+        # None : 안함, 10s : 10살 별로, generation : young, middle, old로
+        if balancing_option == "imbalance":
+            self.balancing_dict == {}
+        elif balancing_option == "10s":
+            self.balancing_dict = balancing_10s_dict(self.data_dir)
+        elif balancing_option == "generation":
+            self.balancing_dict = balancing_gene_dict(self.data_dir)
+        else:
+            assert True, "check data balancing option"
+
         self.setup()
         self.calc_statistics()
+        self.num_classes = num_classes
 
     def setup(self):
+        # 폴더 list 받기
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
             if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
                 continue
-
+            # img_folder == 000004_male_Asian_54 
             img_folder = os.path.join(self.data_dir, profile)
+            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg]
             for file_name in os.listdir(img_folder):
+                # 확장자 제거
                 _file_name, ext = os.path.splitext(file_name)
                 if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
 
                 img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
                 mask_label = self._file_names[_file_name]
 
+                # 000004_male_Asian_54 -> 000004, male, Asian, 54
                 id, gender, race, age = profile.split("_")
                 gender_label = GenderLabels.from_str(gender)
                 age_label = AgeLabels.from_number(age)
@@ -158,6 +256,8 @@ class MaskBaseDataset(Dataset):
                 self.age_labels.append(age_label)
 
     def calc_statistics(self):
+        # mean과 std 구하기, 3000개만
+        # 전체 이미지 구할시 mean = [0.56019358 0.52410121 0.501457], std = [0.61664625 0.58719909 0.56828232]
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
             print("[Warning] Calculating statistics... It can take a long time depending on your CPU machine")
@@ -170,21 +270,34 @@ class MaskBaseDataset(Dataset):
 
             self.mean = np.mean(sums, axis=0) / 255
             self.std = (np.mean(squared, axis=0) - self.mean ** 2) ** 0.5 / 255
+            print(f"image mean = {self.mean}, std = {self.std}")
 
     def set_transform(self, transform):
         self.transform = transform
 
     def __getitem__(self, index):
-        assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
+        #assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
 
         image = self.read_image(index)
         mask_label = self.get_mask_label(index)
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
+        # 각각의 라벨들로 0~18의 라벨 만들기
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
 
-        image_transform = self.transform(image)
-        return image_transform, multi_class_label
+        if self.category=="multi":
+            label = multi_class_label
+        elif self.category =="age":
+            label = age_label
+        elif self.category == "gender":
+            label = gender_label
+        elif self.category =="mask":
+            label = mask_label
+
+        # transform 적용
+        if self.transform:
+            image = self.transform(image)
+        return image, label
 
     def __len__(self):
         return len(self.image_paths)
@@ -215,6 +328,7 @@ class MaskBaseDataset(Dataset):
 
     @staticmethod
     def denormalize_image(image, mean, std):
+        # 정규화한것을 다시 되돌리기
         img_cp = image.copy()
         img_cp *= std
         img_cp += mean
@@ -231,6 +345,7 @@ class MaskBaseDataset(Dataset):
         """
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
+        # 길이 만큼 random_split
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
 
@@ -243,15 +358,21 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
     """
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(self, data_dir, balancing_option, num_classes,category="multi", mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        # 초기화된 dictionary 만들기 -> https://wikidocs.net/104993
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio)
+        self.balancing_dict = {}
+        super().__init__(data_dir, balancing_option, num_classes, category, mean, std, val_ratio)
+
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
         length = len(profiles)
+        # profiles 길이에서 ratio 만큼 곱해 비율 측정
         n_val = int(length * val_ratio)
 
+        # n_val에서 구한 크기 만큼 random sampling
         val_indices = set(random.sample(range(length), k=n_val))
         train_indices = set(range(length)) - val_indices
         return {
@@ -261,46 +382,98 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     def setup(self):
         profiles = os.listdir(self.data_dir)
+        # data_dir 에서 "."으로 시작하지 않는 폴더 리스트 저장 -> 사람으로 random하게 split
         profiles = [profile for profile in profiles if not profile.startswith(".")]
+        # 랜덤하게 split
         split_profiles = self._split_profile(profiles, self.val_ratio)
-
         cnt = 0
+        # phase - [train, val] , indices - [index 번호]
         for phase, indices in split_profiles.items():
             for _idx in indices:
+                # profile - 폴더 리스트중에서 index번호에 해당하는 것 뽑기
                 profile = profiles[_idx]
+                # 폴더 파일 이름
                 img_folder = os.path.join(self.data_dir, profile)
+                # 폴더 파일 7개중에서 loop
                 for file_name in os.listdir(img_folder):
+                    # 파일확장자로 split -> 확장자 제거
                     _file_name, ext = os.path.splitext(file_name)
                     if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
-
+                    # 이미지 파일 path 만들기
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                    # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
                     mask_label = self._file_names[_file_name]
 
+                    # 000004_male_Asian_54 -> 000004, male, Asian, 54
                     id, gender, race, age = profile.split("_")
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
-                    self.image_paths.append(img_path)
-                    self.mask_labels.append(mask_label)
-                    self.gender_labels.append(gender_label)
-                    self.age_labels.append(age_label)
+                    # 밸런싱 안할 떄
+                    if len(self.balancing_dict.keys()) == 0:
+                        num = 1
 
-                    self.indices[phase].append(cnt)
-                    cnt += 1
+                    # 10살로 별로 나누었을 때
+                    elif len(self.balancing_dict.keys()) == 12:
+                        key = gender +"_" +str(int(age)//10 *10)
+                        num = self.balancing_dict[key]
+                        if mask_label:   # 마스크는 5개의 데이터가 있으므로
+                            num = num*5
+
+                    # young, middle, old로 나눌 때
+                    else:
+                        if int(age)>=60:
+                            key = gender +"_old"
+                        elif int(age)>=30:
+                            key = gender +"_middle"
+                        else:
+                            key = gender +"_young"
+                        num = self.balancing_dict[key]
+                        if mask_label:  # 마스크는 5개의 데이터가 있으므로
+                            num = num*5
+                    
+                    # 그 수를 확률적으로 반올림함
+                    num = probablity_work(num)
+
+                    # 그 수 만큼 라벨에 추가.
+                    for _ in range(num):
+                        self.image_paths.append(img_path)
+                        self.mask_labels.append(mask_label)
+                        self.gender_labels.append(gender_label)
+                        self.age_labels.append(age_label)
+
+                        # indices 해당하는 phase[train or val] 에 index번호 저장
+                        self.indices[phase].append(cnt)
+                        cnt += 1
 
     def split_dataset(self) -> List[Subset]:
+        # subset 사용법 https://yeko90.tistory.com/entry/pytorch-how-to-use-Subset#1)_Subset_%EA%B8%B0%EB%B3%B8_%EC%BB%A8%EC%85%89
+        # indice에 train, val 으로 해당하는 subset 분리
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
-
-class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
-        self.img_paths = img_paths
+class TestAugmentation:
+    def __init__(self, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
+            Resize(resize,Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+class TestDataset(Dataset):
+    def __init__(self, img_paths, resize, transfrom=None, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.img_paths = img_paths
+        if transfrom:
+            self.transform = transfrom
+        else:
+            self.transform = Compose([
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ])
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -311,3 +484,83 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
+
+class MySubset(Subset):
+    def __init__(self, subset,transform = None) -> None:
+        self.subset = subset
+        self.transform = transform
+
+    def __getitem__(self, idx):
+        x, y = self.subset[idx]
+        if self.transform:
+            x = self.transform(x)
+        return x,y 
+        # if isinstance(idx, list):
+        #     return self.subset[[self.indices[i] for i in idx]]
+        # return self.subset[self.indices[idx]]
+
+    def __len__(self):
+        return len(self.subset)
+
+def mixup_collate_fn(batch):
+    """_summary_
+    Args:
+        batch (tensor): input
+    Returns:
+        _type_: mixup input
+    """
+    indice = torch.randperm(len(batch))
+    value = np.random.beta(0.1,0.1)
+    t = type(batch[0][1])
+    if t == AgeLabels:
+        num_classes = 3
+    elif t == GenderLabels:
+        num_classes = 2
+    elif t == MaskLabels:
+        num_classes = 3
+    else:
+        num_classes = 18
+
+    if len(batch[0])==2:
+        img = []
+        label = []
+        for a,b in batch:
+            temp = torch.tensor([0]*num_classes)
+            if num_classes==18:
+                temp[b] =1
+            else:
+                temp[b.value] = 1
+            img.append(a)
+            label.append(temp)
+        img = torch.stack(img)
+        label = torch.stack(label)
+        shuffle_label = label[indice]
+
+        label = value * label + (1 - value) * shuffle_label
+    else:
+        img = torch.stack(batch)    
+    shuffle_img = img[indice]
+
+    img = value * img + (1 - value) * shuffle_img
+
+    if len(batch[0])==2:
+        return img, label
+    else:
+        return img
+    
+class CustomDataset(Dataset):
+    def __init__(self, image_paths, labels, transform= None):
+        self.image_paths = image_paths
+        self.labels = labels
+        self.transform = transform
+    
+    def __getitem__(self, idx):
+        x = Image.open(self.image_paths[idx])
+        y = self.labels[idx]
+
+        if self.transform:
+            x = self.transform(x)
+        return x,y
+
+    def __len__(self):
+        return len(self.image_paths)

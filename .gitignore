@@ -1,3 +1,6 @@
 checkpoint
 __pycache__
 exp*
+model/
+output/
+*.log
