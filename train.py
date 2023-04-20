@@ -128,8 +128,7 @@ def train(data_dir, model_dir, args):
         num_classes = num_classes,
         category = args.category,
         mean = (0.485, 0.456, 0.406),
-        std = (0.229, 0.224, 0.225)
-
+        std = (0.229, 0.224, 0.225),
         val_ratio = args.val_ratio
     )
  
