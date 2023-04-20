@@ -100,7 +100,6 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            CenterCrop((360,270)),
             Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -113,8 +112,9 @@ class BaseAugmentation:
 class CustomAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            CenterCrop((360,270)),
+            CenterCrop((320, 256)),
             Resize(resize),
+            ColorJitter(0.1,0.1,0.1,0.1),
             RandomHorizontalFlip(p=0.5),
             ToTensor(),
             Normalize(mean=mean, std=std),

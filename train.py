@@ -127,8 +127,9 @@ def train(data_dir, model_dir, args):
         balancing_option = args.data_balancing,
         num_classes = num_classes,
         category = args.category,
-        mean = (0.485, 0.456, 0.406),
-        std = (0.229, 0.224, 0.225),
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232),
+
         val_ratio = args.val_ratio
     )
  

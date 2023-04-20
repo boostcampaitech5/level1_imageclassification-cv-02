@@ -271,3 +271,24 @@ class Canny(nn.Module):
         x = self.add_canny(x)
         x = self.backbone(x)
         return x
+
+class Canny2(nn.Module):
+    def __init__(self,num_classes):
+        super().__init__()
+        self.add_canny = nn.Conv2d(4,3,1)
+        self.backbone = timm.create_model('swin_small_patch4_window7_224',num_classes =num_classes, pretrained=True)
+
+    def forward(self,x):
+        # batch, channel, h, w
+        canny=[]
+        s = np.uint8(x.detach().cpu().permute(0,2,3,1).numpy())
+        for n in s:
+            gray = cv2.cvtColor(n,cv2.COLOR_RGB2GRAY)
+            gray = cv2.Canny(gray, 100,200)
+            canny.append(torch.tensor(gray).float().unsqueeze(0)/255)
+        canny = torch.stack(canny).cuda()
+
+        x = torch.cat([canny,x],dim=1)
+        x = self.add_canny(x)
+        x = self.backbone(x)
+        return x

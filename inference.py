@@ -51,6 +51,8 @@ def inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
+        mean = (0.20683326, 0.16344436, 0.15733106),
+        std = (0.35039557, 0.28900916, 0.27917677)
     )
 
     dataset = TestDataset(img_paths, args.resize,transform)
@@ -91,8 +93,9 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
-        mean = (0.485, 0.456, 0.406),
-        std = (0.229, 0.224, 0.225)
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232)
+
     )
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
