@@ -214,7 +214,7 @@ class MaskBaseDataset(Dataset):
         # balancing_option 에 따라 나누는 방법 선택
         # None : 안함, 10s : 10살 별로, generation : young, middle, old로
         if balancing_option == "imbalance":
-            self.balancing_dict == {}
+            self.balancing_dict = {}
         elif balancing_option == "10s":
             self.balancing_dict = balancing_10s_dict(self.data_dir)
         elif balancing_option == "generation":
