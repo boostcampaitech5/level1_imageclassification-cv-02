@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
+import torch.nn as nn
 
 from dataset import TestDataset, MaskBaseDataset, CustomAugmentation
 import json
@@ -90,8 +91,8 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
-        mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232),
+        mean = (0.485, 0.456, 0.406),
+        std = (0.229, 0.224, 0.225)
     )
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
@@ -122,6 +123,8 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
                 model_path = os.path.join(model_dir,d) # model_path 받기 Age,Mask,Gender
                 if "gender" in d.lower():
                     num_classes = 2
+                elif "multi" in d.lower():
+                    num_classes = 18
                 else:
                     num_classes = 3
 
@@ -129,6 +132,7 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
                 model.eval()
 
                 logit = model(images)
+                logit = nn.functional.softmax(logit,dim=-1)
                 vote[d.split("_")[0]] += logit.cpu().numpy()
             
             age = np.argmax(vote['age'],axis=-1)
@@ -150,7 +154,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument("--resize", nargs="+", type=int, default=[256, 192], help='resize size for image when training')
-    parser.add_argument("--augmentation", type=str, default="TestAugmentation" , help="select augmentation (default: TestAugmentation)")
+    parser.add_argument("--augmentation", type=str, default="BaseAugmentation" , help="select augmentation (default: BaseAugmentation)")
     parser.add_argument("--ensemble", action='store_true', help="use ensemble inference")
 
     # Container environment

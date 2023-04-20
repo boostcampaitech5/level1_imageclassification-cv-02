@@ -100,7 +100,22 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
+            CenterCrop((360,270)),
             Resize(resize),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+class CustomAugmentation:
+    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
+        self.transform = Compose([
+            CenterCrop((360,270)),
+            Resize(resize),
+            RandomHorizontalFlip(p=0.5),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -124,19 +139,6 @@ class AddGaussianNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-class CustomAugmentation:
-    def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
-        self.transform = Compose([
-            Resize(resize),
-            RandomHorizontalFlip(p=0.5),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
 
 
 class MaskLabels(int, Enum):
@@ -212,7 +214,7 @@ class MaskBaseDataset(Dataset):
         # balancing_option 에 따라 나누는 방법 선택
         # None : 안함, 10s : 10살 별로, generation : young, middle, old로
         if balancing_option == "imbalance":
-            self.balancing_dict == {}
+            self.balancing_dict = {}
         elif balancing_option == "10s":
             self.balancing_dict = balancing_10s_dict(self.data_dir)
         elif balancing_option == "generation":
@@ -255,6 +257,7 @@ class MaskBaseDataset(Dataset):
 
     def calc_statistics(self):
         # mean과 std 구하기, 3000개만
+        # 전체 이미지 구할시 mean = [0.56019358 0.52410121 0.501457], std = [0.61664625 0.58719909 0.56828232]
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
             print("[Warning] Calculating statistics... It can take a long time depending on your CPU machine")
@@ -267,6 +270,7 @@ class MaskBaseDataset(Dataset):
 
             self.mean = np.mean(sums, axis=0) / 255
             self.std = (np.mean(squared, axis=0) - self.mean ** 2) ** 0.5 / 255
+            print(f"image mean = {self.mean}, std = {self.std}")
 
     def set_transform(self, transform):
         self.transform = transform
@@ -543,3 +547,20 @@ def mixup_collate_fn(batch):
         return img, label
     else:
         return img
+    
+class CustomDataset(Dataset):
+    def __init__(self, image_paths, labels, transform= None):
+        self.image_paths = image_paths
+        self.labels = labels
+        self.transform = transform
+    
+    def __getitem__(self, idx):
+        x = Image.open(self.image_paths[idx])
+        y = self.labels[idx]
+
+        if self.transform:
+            x = self.transform(x)
+        return x,y
+
+    def __len__(self):
+        return len(self.image_paths)
