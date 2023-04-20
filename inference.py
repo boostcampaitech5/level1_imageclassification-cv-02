@@ -51,8 +51,8 @@ def inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
-        
     )
+
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
         dataset,
