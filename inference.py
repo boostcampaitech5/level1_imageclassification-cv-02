@@ -19,7 +19,7 @@ def load_model(saved_model, num_classes, device):
     
     model_cls = getattr(import_module("model"), json_data["model"])  # config.json 에 있는 파일
     model = model_cls(
-        num_classes=num_classes
+        num_classes=num_classes,
     )
 
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
@@ -50,6 +50,7 @@ def inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
+        
     )
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
@@ -89,6 +90,8 @@ def ensemble_inference(data_dir, model_dir, output_dir, args):
     transform_cls = getattr(import_module("dataset"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
+        mean = (0.56019358,0.52410121,0.501457),
+        std = (0.61664625, 0.58719909, 0.56828232),
     )
     dataset = TestDataset(img_paths, args.resize,transform)
     loader = torch.utils.data.DataLoader(
