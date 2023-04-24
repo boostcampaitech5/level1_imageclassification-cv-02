@@ -167,7 +167,7 @@
     - 모델 실험
         - ✅ Image classification task에 많이 사용되는 pretrained model 중 모델 크기가 너무 크지도 않고  작지도 않을 때 성능이 잘나옴
         - ✅ ResNet18과 ResNet34 를 비교한 결과 ResNet34 가 성능이 조금 더 좋았음
-        - EfficientNet b1~b4를 비교한 결과 EfficientNet b1~b2 성능이 좋았음
+        - EfficientNet b1-b4를 비교한 결과 EfficientNet b1-b2 성능이 좋았음
         - MobileNet 은 모델 크기가 너무 작아 성능이 잘 안 나옴
         - ✅ SwinSmallWindowVIT은 Resnet18 에 비하여 자체적으로 평가한 f1 스코어는 높지만 제출하여 얻는 f1 스코어는 낮아 Resnet18 가 일반화가 더 잘 되어 있다고 판단함.
             
@@ -249,6 +249,8 @@ usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augm
                 [--maxlr MAXLR] [--mode MODE] [--factor FACTOR] [--patience PATIENCE] [--threshold THRESHOLD] [--criterion CRITERION]
                 [--log_interval LOG_INTERVAL] [--name NAME] [--data_dir DATA_DIR] [--model_dir MODEL_DIR]
 
+ex) python train.py --epoch 50 --resize 224 224 --optimizer adam
+
 optional arguments:
   -h, --help            show this help message and exit
   --seed SEED           random seed (default: 42)
@@ -308,6 +310,8 @@ optional arguments:
 ```bash
 usage: inference.py [-h] [--batch_size BATCH_SIZE] [--resize RESIZE [RESIZE ...]] [--augmentation AUGMENTATION] [--ensemble] [--data_dir DATA_DIR]
                     [--model_dir MODEL_DIR] [--output_dir OUTPUT_DIR] [--name_csv NAME_CSV]
+
+ex) python inference.py --resize 224 224 --optimizer adam --ensemble
 
 optional arguments:
   -h, --help            show this help message and exit
