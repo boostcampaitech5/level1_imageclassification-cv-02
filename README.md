@@ -238,7 +238,9 @@ pip install -r requirements.txt
 
 ### train.py
 
-
+```bash
+python train.py --epoch 50 --resize 224 224 --optimizer adam
+```
 
 ```bash
 usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augmentation AUGMENTATION] [--resize RESIZE [RESIZE ...]]
@@ -303,12 +305,12 @@ optional arguments:
   --data_dir DATA_DIR
   --model_dir MODEL_DIR
 ```
-### train Example
-```bash
-python train.py --epoch 50 --resize 224 224 --optimizer adam
-```
+
 
 ### inference.py
+```bash
+python inference.py --resize 224 224 --optimizer adam --model_dir Model_dir
+```
 
 ```bash
 usage: inference.py [-h] [--batch_size BATCH_SIZE] [--resize RESIZE [RESIZE ...]] [--augmentation AUGMENTATION] [--ensemble] [--data_dir DATA_DIR]
@@ -329,7 +331,3 @@ optional arguments:
   --name_csv NAME_CSV
 ```
 
-### inference Example
-```bash
-python inference.py --resize 224 224 --optimizer adam --model_dir Model_dir
-```
