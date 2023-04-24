@@ -7,7 +7,7 @@
 - **프로젝트 주제 -** 카메라로 촬영한 사람 얼굴 이미지의 마스크 착용 여부를 판단
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (1).png" alt="이미지 설명" width="800" height="300">
+  <img src="./Readme_img/Untitled (1).png" alt="이미지 설명" width="800" height="300">
 </div>
 
 - **프로젝트 목표**
@@ -62,7 +62,7 @@
 - 프로젝트 계획
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (6).png" alt="이미지 설명" width="700" height="200">
+  <img src="./Readme_img/Untitled (6).png" alt="이미지 설명" width="700" height="200">
 </div>
 
 1. **EDA**
@@ -102,7 +102,7 @@
     - 하나의 train코드로 argparse를 통해 다양한 실험을 할 수 있도록 코드를 작성
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (2).png" alt="이미지 설명" width="600" height="700">
+  <img src="./Readme_img/Untitled (2).png" alt="이미지 설명" width="600" height="700">
 </div>
 
 - **Github**
@@ -127,15 +127,15 @@
     - Private f1_score = 0.7411, acc = 80.6825 (9등)
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (3).png" alt="이미지 설명" width="800" height="50">
+  <img src="./Readme_img/Untitled (3).png" alt="이미지 설명" width="800" height="50">
 </div>
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (4).png" alt="이미지 설명" width="800" height="50">
+  <img src="./Readme_img/Untitled (4).png" alt="이미지 설명" width="800" height="50">
 </div>
 
 <div style="text-align:center;">
-  <img src="/opt/ml/develop/level1_imageclassification-cv-02/Readme_img/Untitled (5).png" alt="이미지 설명" width="800" height="400">
+  <img src="./Readme_img/Untitled (5).png" alt="이미지 설명" width="800" height="400">
 </div>
 
  ****✅: 성능향상에 도움이 됐던 아이디어
