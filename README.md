@@ -249,8 +249,6 @@ usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augm
                 [--maxlr MAXLR] [--mode MODE] [--factor FACTOR] [--patience PATIENCE] [--threshold THRESHOLD] [--criterion CRITERION]
                 [--log_interval LOG_INTERVAL] [--name NAME] [--data_dir DATA_DIR] [--model_dir MODEL_DIR]
 
-ex) python train.py --epoch 50 --resize 224 224 --optimizer adam
-
 optional arguments:
   -h, --help            show this help message and exit
   --seed SEED           random seed (default: 42)
@@ -305,13 +303,16 @@ optional arguments:
   --data_dir DATA_DIR
   --model_dir MODEL_DIR
 ```
+### train Example
+```bash
+python train.py --epoch 50 --resize 224 224 --optimizer adam
+```
+
 ### inference.py
 
 ```bash
 usage: inference.py [-h] [--batch_size BATCH_SIZE] [--resize RESIZE [RESIZE ...]] [--augmentation AUGMENTATION] [--ensemble] [--data_dir DATA_DIR]
                     [--model_dir MODEL_DIR] [--output_dir OUTPUT_DIR] [--name_csv NAME_CSV]
-
-ex) python inference.py --resize 224 224 --optimizer adam --ensemble
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -328,3 +329,7 @@ optional arguments:
   --name_csv NAME_CSV
 ```
 
+### inference Example
+```bash
+python inference.py --resize 224 224 --optimizer adam --model_dir Model_dir
+```
