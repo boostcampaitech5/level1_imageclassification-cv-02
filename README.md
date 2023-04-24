@@ -98,12 +98,6 @@
         - StratifiedKFold
         - soft & hard voting
 1. **프로젝트 관리 및 협업 툴**
-- **Argparser**
-    - 하나의 train코드로 argparse를 통해 다양한 실험을 할 수 있도록 코드를 작성
-
-<div style="text-align:center;">
-  <img src="./Readme_img/Untitled (2).png" alt="이미지 설명" width="600" height="700">
-</div>
 
 - **Github**
     - Git flow를 이해하고, 멘토링 시간에 배운 협업 기법들을 최대한 사용하는 것을 목표로 함
@@ -213,31 +207,8 @@
     - ✅ age, gender, mask를 따로 고려해서 각자 다른 모델로 학습하고 ensemble하여 soft voting을 통해 하나로 합침, 성능 향상이 있었음
     - ✅ [224, 224], [384,384], [512,384] 등 이미지의 크기와 nomalize mean,std 값을 변경하여 다양한 데이터로 학습한 모델들의 결과를 hard voting으로 ensemble을 하여 성능을 높임
 
-# 5. 자체 평가 의견
 
-### 잘한 점들
-
-- Pytorch Template을 통해 모듈화된 프로젝트 구조를 학습했다.
-- Github로 협업하며 각자의 역할을 분담해 협업 능력을 키운 것이 좋았습니다.
-- 데일리 스크럼 및 피어세션 시간에 서로의 진행 사항을 공유하는 적극적인 의사소통을 통해 다양한 관점에서 문제를 해석하고 해결 방안을 고민하여 모델 학습에 대한 이해를 키웠습니다.
-- 결과 보다는 개인의 역량 발전에 초점을 두어 작업한 것이 서로의 실력을 키운 좋은 기회가 된 것 같다.
-- 점수보다는 다양한 시도와 실험 분석에 집중하여 다양한 관점을 키운 것이 도움이 많이 됐다.
-
-### 아쉬웠던 점들
-
-- 점수에 관심이 쏠려 더 다양한 아이디어와 해결 방안을 적용 시켜보지 못한 것이 아쉽다.
-- 실험을 편하게 하기 위한 Baseline 작성이 먼저 되다 보니 제출을 많이 하지 못해 정확한 분석으로 이루어 지지 않은 것이 아쉬웠다.
-- WandB를 이용했으면 효과적으로 실험 결과를 공유할 것 있었을 텐 데 이용하지 않았던 게 아쉽다.
-- 실험 진행이 좀 더 원활하게 되도록 mixed precision으로 학습 시간 단축이나 json으로 실험 관리를 시도해보지 않은 것이 아쉽다.
-
-### 프로젝트를 통해 배운점 또는 시사점
-
-- 모델들의 성능 보다는 데이터에 대한 이해가 더 중요하다는 것을 알게 되었다. 가장 성능이 좋은 sota 보다도 모델에 대한 이해로 알맞은 모델을 선정하고 알맞은 조합을 찾는 것이 가장 중요하다고 생각되었다.
-- 실험 결과에 대해 토론하면서 ML 성능을 향상 시키기 위한 아이디로 많이 얻을 수 있었다.
-- 초기의 계획대로 점수보다 협업, 실험 관리, 전체적인 흐름을 배우고, 활용하는 것에 더 초점을 맞추니 전반적인 흐름 파악하는 것에 더욱 수월하였다.
-- 다양한 의견들을 공유하는 것이 문제 해결에 많은 도움이 되며 때로는 특이한 아이디어가 가장 효과적인 해결 방법일 수 있다고 생각된다.
-
-# 6. 레퍼런스
+# 5. 레퍼런스
 
 WeightedRandomSampler
 
@@ -254,3 +225,82 @@ Cutmix
 Edge Canny Detection
 
 - Canny, J. (1986). A computational approach to edge detection. IEEE Transactions on pattern analysis and machine intelligence, (6), 679-698.
+
+# 6. 실행방법
+
+### `install requirements`
+
+```
+pip install -r requirements.txt
+```
+
+<br>
+
+### Train.py
+
+
+
+```bash
+usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augmentation AUGMENTATION] [--resize RESIZE [RESIZE ...]]
+                [--batch_size BATCH_SIZE] [--valid_batch_size VALID_BATCH_SIZE] [--val_ratio VAL_RATIO] [--data_balancing {imbalance,10s,gene}]
+                [--age_lable_num AGE_LABLE_NUM] [--mixup] [--kfold KFOLD] [--weightsampler] [--cutmix] [--model MODEL]
+                [--category {multi,mask,gender,age}] [--early_stopping_patience EARLY_STOPPING_PATIENCE] [--lr LR] [--lr_decay_step LR_DECAY_STEP]
+                [--optimizer OPTIMIZER] [--momentum MOMENTUM] [--weight_decay WEIGHT_DECAY] [--scheduler SCHEDULER] [--gamma GAMMA] [--tmax TMAX]
+                [--maxlr MAXLR] [--mode MODE] [--factor FACTOR] [--patience PATIENCE] [--threshold THRESHOLD] [--criterion CRITERION]
+                [--log_interval LOG_INTERVAL] [--name NAME] [--data_dir DATA_DIR] [--model_dir MODEL_DIR]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --seed SEED           random seed (default: 42)
+  --epochs EPOCHS       number of epochs to train (default: 1)
+  --dataset DATASET     dataset augmentation type (default: MaskSplitByProfileDataset)
+  --augmentation AUGMENTATION
+                        train data augmentation type (default: CustomAugmentation)
+  --resize RESIZE [RESIZE ...]
+                        resize size for image when training
+  --batch_size BATCH_SIZE
+                        input batch size for training (default: 64)
+  --valid_batch_size VALID_BATCH_SIZE
+                        input batch size for validing (default: 1000)
+  --val_ratio VAL_RATIO
+                        ratio for validaton (default: 0.2)
+  --data_balancing {imbalance,10s,gene}
+                        balance such as imbalance, generation, 10s (default: imbalance)
+  --age_lable_num AGE_LABLE_NUM
+                        number of age label is 3 OR 6 (default : 3)
+  --mixup               use mixup 0.2
+  --kfold KFOLD         using Kfold k
+  --weightsampler       using torch WeightedRamdomSampling
+  --cutmix              use cutmix
+  --model MODEL         model type (default: BaseModel)
+  --category {multi,mask,gender,age}
+                        choose labels type of multi,mask,gender,age
+  --early_stopping_patience EARLY_STOPPING_PATIENCE
+                        input early stopping patience, It does not work if you input -1, default : 5
+  --lr LR               learning rate (default: 1e-3)
+  --lr_decay_step LR_DECAY_STEP
+                        learning rate scheduler deacy step (default: 5)
+  --optimizer OPTIMIZER
+                        optimizer such as sgd, momentum, adam, adagrad (default: sgd)
+  --momentum MOMENTUM   momentum (default: 0.9)
+  --weight_decay WEIGHT_DECAY
+                        weight decay (default: 0.01)
+  --scheduler SCHEDULER
+                        scheduler such as steplr, lambdalr, exponentiallr, cycliclr, reducelronplateau etc. (default: steplr)
+  --gamma GAMMA         learning rate scheduler gamma (default: 0.5)
+  --tmax TMAX           tmax used in CyclicLR and CosineAnnealingLR (default: 5)
+  --maxlr MAXLR         maxlr used in CyclicLR (default: 0.1)
+  --mode MODE           mode used in CyclicLR such as triangular, triangular2, exp_range (default: triangular)
+  --factor FACTOR       mode used in ReduceLROnPlateau (default: 0.5)
+  --patience PATIENCE   mode used in ReduceLROnPlateau (default: 4)
+  --threshold THRESHOLD
+                        mode used in ReduceLROnPlateau (default: 1e-4)
+  --criterion CRITERION
+                        criterion type (default: cross_entropy)
+  --log_interval LOG_INTERVAL
+                        how many batches to wait before logging training status
+  --name NAME           model save at {SM_MODEL_DIR}/{name}
+  --data_dir DATA_DIR
+  --model_dir MODEL_DIR
+```
+
