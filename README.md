@@ -228,7 +228,7 @@ Edge Canny Detection
 
 # 6. 실행방법
 
-### `install requirements`
+### install requirements
 
 ```
 pip install -r requirements.txt
@@ -236,7 +236,7 @@ pip install -r requirements.txt
 
 <br>
 
-### Train.py
+### train.py
 
 
 
@@ -302,5 +302,25 @@ optional arguments:
   --name NAME           model save at {SM_MODEL_DIR}/{name}
   --data_dir DATA_DIR
   --model_dir MODEL_DIR
+```
+### inference.py
+
+```bash
+usage: inference.py [-h] [--batch_size BATCH_SIZE] [--resize RESIZE [RESIZE ...]] [--augmentation AUGMENTATION] [--ensemble] [--data_dir DATA_DIR]
+                    [--model_dir MODEL_DIR] [--output_dir OUTPUT_DIR] [--name_csv NAME_CSV]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --batch_size BATCH_SIZE
+                        input batch size for validing (default: 1000)
+  --resize RESIZE [RESIZE ...]
+                        resize size for image when training
+  --augmentation AUGMENTATION
+                        select augmentation (default: BaseAugmentation)
+  --ensemble            use ensemble inference
+  --data_dir DATA_DIR
+  --model_dir MODEL_DIR
+  --output_dir OUTPUT_DIR
+  --name_csv NAME_CSV
 ```
 
