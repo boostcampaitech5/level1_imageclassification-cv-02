@@ -144,10 +144,10 @@ def train(data_dir, model_dir, args):
         scheduler = create_scheduler(args.scheduler,optimizer,args)
         
         # -- logging
-        if k == 0:
-            save_dir = increment_path(os.path.join(model_dir, args.name+f"_{k+1}"))
+        if args.kfold:
+            save_dir = increment_path(os.path.join(model_dir, args.name+f"_{k+1}fold"))
         else:
-            save_dir = increment_path(os.path.join(model_dir, args.name+f"_{k+1}"))
+            save_dir = increment_path(os.path.join(model_dir, args.name))
             
         logger = SummaryWriter(log_dir=save_dir)
         with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:

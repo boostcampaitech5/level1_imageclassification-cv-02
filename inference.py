@@ -59,7 +59,7 @@ def inference(data_dir, model_dir, output_dir, args):
         resize = args.resize,
     )
 
-    dataset = CustomDataset(img_paths, transform)
+    dataset = CustomDataset(img_paths, transform = transform)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -69,14 +69,13 @@ def inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
 
-    
     if args.ensemble:
         dirlist = []
         for p in os.listdir(model_dir):
             dirlist.append(os.path.join(model_dir,p))
-
     else:
         dirlist = [model_dir]
+
     print("Calculating inference results..") 
 
     preds = []
@@ -91,7 +90,8 @@ def inference(data_dir, model_dir, output_dir, args):
                 }
 
             for model_path in dirlist:
-                category = model_path.split("_")[0].lower()
+                category = os.path.basename(model_path)
+                category = category.split("_")[0].lower()
                 if "gender" in category:
                     num_classes = 2
                 elif "multi" in category:
