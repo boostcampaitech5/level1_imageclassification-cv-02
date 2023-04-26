@@ -1,7 +1,6 @@
 import argparse
 import glob
 import json
-import multiprocessing
 import os
 import random
 import re
@@ -12,11 +11,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
-from dataset import make_dataloader, MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
+from dataset import make_dataloader, MaskBaseDataset
 from loss import create_criterion
 from optims import create_optimizer, create_scheduler
 
@@ -260,7 +258,7 @@ def train(data_dir, model_dir, args):
 
                 val_score = f1_score(trues, predicts, average='macro')
                 val_loss = np.sum(val_loss_items) / len(val_loader)
-                val_acc = np.sum(val_acc_items) / len(val_loader)
+                val_acc = np.sum(val_acc_items) / len(val_loader) /args.valid_batch_size
                 best_val_acc = max(best_val_acc, val_acc)
                 best_val_loss = min(best_val_loss, val_loss)
 
@@ -284,7 +282,6 @@ def train(data_dir, model_dir, args):
                 logger.add_scalar("Val/loss", val_loss, epoch)
                 logger.add_scalar("Val/accuracy", val_acc, epoch)
                 logger.add_scalar("Val/f1_score",val_score,epoch)
-                logger.add_figure("results", figure, epoch)
                 print()
                 if args.scheduler == 'reducelronplateau':
                     scheduler.step(val_loss)

@@ -106,7 +106,7 @@ def create_scheduler(scheduler_name, optimizer, args):
             kargs['patience'] = args.patience
             kargs['threshold'] = args.threshold
 
-        scheduler = create_fn(optimizer,kargs)
+        scheduler = create_fn(optimizer,**kargs)
     else:
         raise RuntimeError('Unknown scheduler (%s)' % scheduler_name)
     return scheduler
