@@ -123,6 +123,12 @@ def train(data_dir, model_dir, args):
         model = model_module(
             num_classes=num_classes
         )
+        if args.canny:
+            backbone = model
+            model_module = getattr(import_module("model"), "Canny")
+            model = model_module(
+                model = backbone,
+            )
         if args.arcface:
             backbone = model_module(num_classes=1000)
             model_module = getattr(import_module("model"), "ArcfaceModel")
@@ -313,6 +319,7 @@ if __name__ == '__main__':
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
     parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
     parser.add_argument('--arcface', action='store_true', help ="using arcface loss")
+    parser.add_argument('--canny', action='store_true', help="add canny information in input")
 
     # optimizer
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
