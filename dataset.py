@@ -100,7 +100,6 @@ def is_image_file(filename):
 class BaseAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            CenterCrop((360,270)),
             Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -113,8 +112,9 @@ class BaseAugmentation:
 class CustomAugmentation:
     def __init__(self, resize,  mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), **args):
         self.transform = Compose([
-            CenterCrop((360,270)),
+            CenterCrop((320, 256)),
             Resize(resize),
+            ColorJitter(0.1,0.1,0.1,0.1),
             RandomHorizontalFlip(p=0.5),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -174,9 +174,9 @@ class AgeLabels(int, Enum):
         except Exception:
             raise ValueError(f"Age value should be numeric, {value}")
 
-        if value < 30:
+        if value < 29:
             return cls.YOUNG
-        elif value < 59:
+        elif value < 58:
             return cls.MIDDLE
         else:
             return cls.OLD
@@ -214,7 +214,7 @@ class MaskBaseDataset(Dataset):
         # balancing_option 에 따라 나누는 방법 선택
         # None : 안함, 10s : 10살 별로, generation : young, middle, old로
         if balancing_option == "imbalance":
-            self.balancing_dict == {}
+            self.balancing_dict = {}
         elif balancing_option == "10s":
             self.balancing_dict = balancing_10s_dict(self.data_dir)
         elif balancing_option == "generation":

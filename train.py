@@ -14,13 +14,31 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler, SubsetRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
 from loss import create_criterion
+from collections import Counter
 
+def rand_bbox(size, lam):
+    W = size[2]
+    H = size[3]
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -94,9 +112,6 @@ def train(data_dir, model_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-
-    # -- balancing_option
-
     # num_classes
     if args.category == "multi":
         num_classes = 18 # 18
@@ -105,7 +120,6 @@ def train(data_dir, model_dir, args):
     else:
         num_classes = 3
 
-
     # -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
@@ -113,9 +127,9 @@ def train(data_dir, model_dir, args):
         balancing_option = args.data_balancing,
         num_classes = num_classes,
         category = args.category,
-
         mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232)
+        std = (0.61664625, 0.58719909, 0.56828232),
+
         val_ratio = args.val_ratio
     )
  
@@ -137,7 +151,7 @@ def train(data_dir, model_dir, args):
     train_set, val_set = dataset.split_dataset()
     train_set = MySubset(train_set, transform = train_transform)
     val_set = MySubset(val_set, transform = val_transform)
-    
+
     if args.mixup:
         collate_fn = mixup_collate_fn
         args.criterion = "bce"
@@ -171,7 +185,7 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    criterion = create_criterion(args.criterion,num_classes)  # default: cross_entropy
+    criterion = create_criterion(args.criterion).to(device)
     '''
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
@@ -249,9 +263,23 @@ def train(data_dir, model_dir, args):
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
+            if args.cutmix:
+                # generate mixed sample
+                lam = np.random.beta(1.0, 1.0)
+                rand_index = torch.randperm(inputs.size()[0]).to(device)
+                labels_a = labels
+                labels_b = labels[rand_index]
+                bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam)
+                inputs[:, :, bbx1:bbx2, bby1:bby2] = inputs[rand_index, :, bbx1:bbx2, bby1:bby2]
+                # adjust lambda to exactly match pixel ratio
+                lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (inputs.size()[-1] * inputs.size()[-2]))
+                # compute output
+                outs = model(inputs)
+                loss = criterion(outs, labels_a) * lam + criterion(outs, labels_b) * (1. - lam)
+            else:
+                outs = model(inputs)
+                loss = criterion(outs, labels)
             preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
 
             loss.backward()
             optimizer.step()
@@ -366,7 +394,6 @@ def train(data_dir, model_dir, args):
     logger.close()
 
 def ktrain(data_dir, model_dir, args):
-    from collections import defaultdict
     from dataset import MaskLabels, AgeLabels, GenderLabels
     from sklearn.model_selection import StratifiedKFold
     seed_everything(args.seed)
@@ -410,7 +437,8 @@ def ktrain(data_dir, model_dir, args):
 
     # -- dataset
     image_paths = []
-    labels = []
+    image_labels = []
+    # kfold 정의
     skf = StratifiedKFold(n_splits=args.kfold, shuffle=False)
     profiles = os.listdir(data_dir)
     # data_dir 에서 "."으로 시작하지 않는 폴더 리스트 저장 
@@ -418,43 +446,54 @@ def ktrain(data_dir, model_dir, args):
 
     if args.category=="mask":
         for profile in profiles:
-            # img_folder == 000004_male_Asian_54 
+            # img_folder == inputs/train/image/000004_male_Asian_54 
             img_folder = os.path.join(args.data_dir, profile)
-            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg]
+            # 폴더안의 image list == [mask1.jpg, mask2.jpg, incorrect.jpg ...]
             for file_name in os.listdir(img_folder):
-                # 확장자 제거
+                # 확장자 제거, _file_name = mask1, ext=.jpg
                 _file_name, ext = os.path.splitext(file_name)
                 if _file_name not in _file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
-
+                
+                # img_path = inputs/train/image/000004_male_Asian_54/mask1.jpg
                 img_path = os.path.join(args.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
-                # 위 _file_names dict에서 해당하는 라벨 찾기 - > data/000004_male_Asian_54/mask1.jpg
+                # 위 _file_names dict에서 해당하는 라벨 찾기 - > mask1
                 mask_label = _file_names[_file_name]
 
                 image_paths.append(img_path)
-                labels.append(mask_label)
-        
-        make_kfold = skf.split(image_paths, labels)
+                image_labels.append(mask_label)
+        # 마스크기준 kfold
+        make_kfold = skf.split(image_paths, image_labels)
         
     else:
         # label을 찾아 그에 맞는 kfold
         temp_label = []
         for p in profiles:
+            # p = 000004_male_Asian_54
             id, gender, race, age = p.split("_")
             if args.category == 'age':
                 temp_label.append(AgeLabels.from_number(age))
             else:
                 temp_label.append(GenderLabels.from_str(gender))
         
+        # 사람별 kfold
         make_kfold = skf.split(profiles,temp_label)
-        
+    
     for k,(train_index, val_index) in enumerate(make_kfold):
         if args.category =="mask":
+            # 전체 이미지에서 train set 에 해당하는 index만 train_imgs 로 저장
+            # train_list = [img1,img2,img3...img10]
+            # [1,2,3,4,5,6,7,8] [9,10]
+            # [1,2,3,4,5,6,9,10] [7,8]
+            # [1,2,3,4,7,8,9,10] [5,6]
+            # [1,2,5,6,7,8,9,10] [3,4]
+            # [3,4,5,6,7,8,9,10] [1,2]
             train_imgs = [image_paths[i] for i in train_index]
-            train_labels = [labels[i] for i in train_index]
+            train_labels = [image_labels[i] for i in train_index]
             val_imgs = [image_paths[i] for i in val_index]
-            val_labels = [labels[i] for i in val_index]
+            val_labels = [image_labels[i] for i in val_index]
         else:
+            # 사람별 이미지 폴더에서 train set에 해당하는 index 저장
             train_p = [profiles[i] for i in train_index]
             val_p = [profiles[i] for i in val_index]
 
@@ -462,6 +501,7 @@ def ktrain(data_dir, model_dir, args):
             train_labels =[]
             val_imgs = []
             val_labels = []
+            # 폴더안의 7개의 이미지를 train_imgs에 저장
             for profile in train_p:
                 id, gender, race, age = profile.split("_")
                 age = AgeLabels.from_number(age)
@@ -499,22 +539,38 @@ def ktrain(data_dir, model_dir, args):
         train_set = CustomDataset(train_imgs,train_labels,transform=train_transform)
         val_set = CustomDataset(val_imgs,val_labels,transform=val_transform)
 
-
         if args.mixup:
             collate_fn = mixup_collate_fn
             args.criterion = "bce"
         else:
             collate_fn = None
+        
+        # 클래스별 개수를 구하여 sampling
+        class_counts = Counter(train_labels)
+        if args.weightsampler:
+            weights = torch.DoubleTensor([1./class_counts[i] for i in train_labels])
+            weight_sampler = WeightedRandomSampler(weights,len(train_labels))
+            train_loader = DataLoader(
+                train_set,
+                batch_size=args.batch_size,
+                num_workers=multiprocessing.cpu_count() // 2,
+                sampler = weight_sampler,
+                shuffle=False,
+                pin_memory=use_cuda,
+                collate_fn=collate_fn,
+                drop_last=True,
+            )
+        else:
+            train_loader = DataLoader(
+                train_set,
+                batch_size=args.batch_size,
+                num_workers=multiprocessing.cpu_count() // 2,
+                shuffle=True,
+                pin_memory=use_cuda,
+                collate_fn=collate_fn,
+                drop_last=True,
+            )
 
-        train_loader = DataLoader(
-            train_set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=True,
-            pin_memory=use_cuda,
-            collate_fn=collate_fn,
-            drop_last=True,
-        )
 
         val_loader = DataLoader(
             val_set,
@@ -691,7 +747,7 @@ def ktrain(data_dir, model_dir, args):
                         break
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
                 print(
-                    f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
+                    f"{k} [Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
                     f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
                 )
                 logger.add_scalar("Val/loss", val_loss, epoch)
@@ -720,6 +776,8 @@ if __name__ == '__main__':
     parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
     parser.add_argument('--kfold', type=int, help="using Kfold k")
+    parser.add_argument('--weightsampler', action='store_true', help="using torch WeightedRamdomSampling")
+    parser.add_argument('--cutmix', action='store_true', help='use cutmix')
     
     # model
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
