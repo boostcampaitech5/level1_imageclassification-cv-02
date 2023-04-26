@@ -36,7 +36,7 @@ def create_optimizer(optimizer_name, parameter, args):
     """_summary_
 
     Args:
-        optimizer_name (str): [] 사용가능
+        optimizer_name (str): [sgd, adagrad, adam] 사용가능
 
     Raises:
         RuntimeError: 해당 하는 optimizer가 없다면 raise error
@@ -69,7 +69,7 @@ def create_scheduler(scheduler_name, optimizer, args):
     """_summary_
 
     Args:
-        scheduler_name (str): [] 사용가능
+        scheduler_name (str): ["steplr", "lambdalr","exponentialLR", "cosineannealinglr", "cycliclr", "reducelronplateau"] 사용가능
 
     Raises:
         RuntimeError: 해당 하는 scheduler가 없다면 raise error

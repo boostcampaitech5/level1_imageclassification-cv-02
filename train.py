@@ -124,9 +124,11 @@ def train(data_dir, model_dir, args):
             num_classes=num_classes
         )
         if args.arcface:
+            backbone = model_module(num_classes=1000)
             model_module = getattr(import_module("model"), "ArcfaceModel")
             model = model_module(
-                model = model,
+                model = backbone,
+                num_features = 1000,
                 num_classes = num_classes
             )    
         model = model.to(device)

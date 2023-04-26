@@ -240,17 +240,16 @@ class MaskMobileNet_150(nn.Module):
 class Coatnet(nn.Module):
     def __init__(self,num_classes):
         super().__init__()
-        # self.backbone = timm.create_model("hf_hub:timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k", pretrained=True)
+        self.backbone = timm.create_model("hf_hub:timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k",num_classes=num_classes, pretrained=True)
         #self.backbone = timm.create_model("hf_hub:timm/maxvit_small_tf_384.in1k", pretrained=True)
         # self.backbone = timm.create_model("hf_hub:timm/convnextv2_base.fcmae_ft_in22k_in1k_384", pretrained=True)
 
-        self.backbone = timm.create_model("swin_base_patch4_window12_384_in22k",num_classes=num_classes, pretrained=True)
+        # self.backbone = timm.create_model("swin_base_patch4_window12_384_in22k",num_classes=num_classes, pretrained=True)
         # self.backbone = timm.create_model("hf_hub:timm/convnext_small.fb_in22k_ft_in1k_384", pretrained=True)
         # self.classifier = nn.Linear(1000,num_classes,bias=True)
 
     def forward(self,x):
         x = self.backbone(x)
-        # x = self.classifier(x)
         return x
 
 class Canny(nn.Module):
@@ -296,10 +295,10 @@ class Canny2(nn.Module):
         return x
     
 class ArcfaceModel(nn.Module):
-    def __init__(self,model, num_classes):
+    def __init__(self,model,num_features, num_classes):
         super().__init__()
         self.model = model
-        self.arcface = ArcMarginProduct(in_feature=num_classes, out_feature=num_classes)
+        self.arcface = ArcMarginProduct(in_features=num_features, out_features=num_classes)
 
     def forward(self,x,labels):
         feature = self.model(x)
