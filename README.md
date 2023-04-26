@@ -309,7 +309,7 @@ optional arguments:
 
 ### inference.py
 ```bash
-python inference.py --resize 224 224 --optimizer adam --model_dir Model_dir
+python inference.py --resize 224 224 --model_dir Model_dir
 ```
 
 ```bash
