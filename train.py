@@ -129,7 +129,7 @@ def train(data_dir, model_dir, args):
             model = model_module(
                 backbone = backbone,
             )
-        if args.arcface:
+        elif args.arcface:
             backbone = model_module(num_classes=1000)
             model_module = getattr(import_module("model"), "ArcfaceModel")
             model = model_module(
@@ -137,6 +137,7 @@ def train(data_dir, model_dir, args):
                 num_features = 1000,
                 num_classes = num_classes
             )    
+            print(model)
         model = model.to(device)
         model = torch.nn.DataParallel(model)
 

@@ -12,7 +12,7 @@ import torch.nn as nn
 from dataset import CustomDataset
 import json
 
-def load_model(saved_model, num_classes, device):
+def load_model(saved_model, num_classes, device,json_data):
     """_summary_
 
     Args:
@@ -23,15 +23,26 @@ def load_model(saved_model, num_classes, device):
     Returns:
         model : weight를 불러온 모델 
     """
+
     
-    config_path = os.path.join(saved_model, 'config.json')
-    with open(config_path, 'r') as f:
-        json_data = json.load(f)
-    
-    model_cls = getattr(import_module("model"), json_data["model"])  # config.json 에 있는 파일
-    model = model_cls(
+    model_module = getattr(import_module("model"), json_data["model"])  # config.json 에 있는 파일
+    model = model_module(
         num_classes=num_classes,
     )
+    if json_data['canny']:
+        backbone = model
+        model_module = getattr(import_module("model"), "Canny")
+        model = model_module(
+            backbone = backbone,
+        )
+    elif json_data['arcface']:
+        backbone = model_module(num_classes=1000)
+        model_module = getattr(import_module("model"), "ArcfaceModelInfer")
+        model = model_module(
+            backbone = backbone,
+            num_features = 1000,
+            num_classes = num_classes
+        )    
 
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
     # tar = tarfile.open(tarpath, 'r:gz')
@@ -90,8 +101,11 @@ def inference(data_dir, model_dir, output_dir, args):
                 }
 
             for model_path in dirlist:
-                category = os.path.basename(model_path)
-                category = category.split("_")[0].lower()
+                config_path = os.path.join(model_path, 'config.json')
+                with open(config_path, 'r') as f:
+                    json_data = json.load(f)
+                category = json_data['category']
+
                 if "gender" in category:
                     num_classes = 2
                 elif "multi" in category:
@@ -99,7 +113,7 @@ def inference(data_dir, model_dir, output_dir, args):
                 else:
                     num_classes = 3
 
-                model = load_model(model_path, num_classes, device).to(device) 
+                model = load_model(model_path, num_classes, device,json_data).to(device) 
                 model.eval()
 
                 logit = model(images)

@@ -284,3 +284,15 @@ class ArcfaceModel(nn.Module):
         feature = self.backbone(x)
         logits = self.arcface(feature, labels)
         return logits
+
+class ArcfaceModelInfer(nn.Module):
+    def __init__(self,backbone,num_features, num_classes):
+        super().__init__()
+        self.backbone = backbone
+        self.arcface = nn.Linear(in_features=num_features, out_features=num_classes,bias=False)
+
+    def forward(self,x):
+        x = self.backbone(x)
+        x = F.normalize(x, dim=1)
+        logits = self.arcface(x)
+        return logits
