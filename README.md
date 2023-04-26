@@ -243,12 +243,11 @@ python train.py --epoch 50 --resize 224 224 --optimizer adam
 ```
 
 ```bash
-usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augmentation AUGMENTATION] [--resize RESIZE [RESIZE ...]]
-                [--batch_size BATCH_SIZE] [--valid_batch_size VALID_BATCH_SIZE] [--val_ratio VAL_RATIO] [--data_balancing {imbalance,10s,gene}]
-                [--age_lable_num AGE_LABLE_NUM] [--mixup] [--kfold KFOLD] [--weightsampler] [--cutmix] [--model MODEL]
-                [--category {multi,mask,gender,age}] [--early_stopping_patience EARLY_STOPPING_PATIENCE] [--lr LR] [--lr_decay_step LR_DECAY_STEP]
-                [--optimizer OPTIMIZER] [--momentum MOMENTUM] [--weight_decay WEIGHT_DECAY] [--scheduler SCHEDULER] [--gamma GAMMA] [--tmax TMAX]
-                [--maxlr MAXLR] [--mode MODE] [--factor FACTOR] [--patience PATIENCE] [--threshold THRESHOLD] [--criterion CRITERION]
+usage: train.py [-h] [--seed SEED] [--epochs EPOCHS] [--dataset DATASET] [--augmentation AUGMENTATION] [--resize RESIZE [RESIZE ...]] [--batch_size BATCH_SIZE]
+                [--valid_batch_size VALID_BATCH_SIZE] [--val_ratio VAL_RATIO] [--mixup] [--kfold KFOLD] [--weightsampler] [--cutmix] [--model MODEL]
+                [--category {multi,mask,gender,age}] [--early_stopping_patience EARLY_STOPPING_PATIENCE] [--arcface] [--canny] [--lr LR]
+                [--lr_decay_step LR_DECAY_STEP] [--optimizer OPTIMIZER] [--momentum MOMENTUM] [--weight_decay WEIGHT_DECAY] [--scheduler SCHEDULER] [--gamma GAMMA]
+                [--tmax TMAX] [--maxlr MAXLR] [--mode MODE] [--factor FACTOR] [--patience PATIENCE] [--threshold THRESHOLD] [--criterion CRITERION]
                 [--log_interval LOG_INTERVAL] [--name NAME] [--data_dir DATA_DIR] [--model_dir MODEL_DIR]
 
 optional arguments:
@@ -266,10 +265,6 @@ optional arguments:
                         input batch size for validing (default: 1000)
   --val_ratio VAL_RATIO
                         ratio for validaton (default: 0.2)
-  --data_balancing {imbalance,10s,gene}
-                        balance such as imbalance, generation, 10s (default: imbalance)
-  --age_lable_num AGE_LABLE_NUM
-                        number of age label is 3 OR 6 (default : 3)
   --mixup               use mixup 0.2
   --kfold KFOLD         using Kfold k
   --weightsampler       using torch WeightedRamdomSampling
@@ -279,6 +274,8 @@ optional arguments:
                         choose labels type of multi,mask,gender,age
   --early_stopping_patience EARLY_STOPPING_PATIENCE
                         input early stopping patience, It does not work if you input -1, default : 5
+  --arcface             using arcface loss
+  --canny               add canny information in input
   --lr LR               learning rate (default: 1e-3)
   --lr_decay_step LR_DECAY_STEP
                         learning rate scheduler deacy step (default: 5)
@@ -309,7 +306,7 @@ optional arguments:
 
 ### inference.py
 ```bash
-python inference.py --resize 224 224 --optimizer adam --model_dir Model_dir
+python inference.py --resize 224 224 --model_dir Model_dir
 ```
 
 ```bash
