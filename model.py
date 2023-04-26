@@ -5,6 +5,8 @@ import timm
 import torch
 import cv2
 import numpy as np
+from loss import ArcMarginProduct
+
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -238,24 +240,23 @@ class MaskMobileNet_150(nn.Module):
 class Coatnet(nn.Module):
     def __init__(self,num_classes):
         super().__init__()
-        # self.backbone = timm.create_model("hf_hub:timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k", pretrained=True)
+        self.backbone = timm.create_model("hf_hub:timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k",num_classes=num_classes, pretrained=True)
         #self.backbone = timm.create_model("hf_hub:timm/maxvit_small_tf_384.in1k", pretrained=True)
         # self.backbone = timm.create_model("hf_hub:timm/convnextv2_base.fcmae_ft_in22k_in1k_384", pretrained=True)
 
-        self.backbone = timm.create_model("swin_base_patch4_window12_384_in22k",num_classes=num_classes, pretrained=True)
+        # self.backbone = timm.create_model("swin_base_patch4_window12_384_in22k",num_classes=num_classes, pretrained=True)
         # self.backbone = timm.create_model("hf_hub:timm/convnext_small.fb_in22k_ft_in1k_384", pretrained=True)
         # self.classifier = nn.Linear(1000,num_classes,bias=True)
 
     def forward(self,x):
         x = self.backbone(x)
-        # x = self.classifier(x)
         return x
 
 class Canny(nn.Module):
-    def __init__(self,num_classes):
+    def __init__(self,backbone):
         super().__init__()
         self.add_canny = nn.Conv2d(4,3,1)
-        self.backbone = timm.create_model('resnet18',num_classes =num_classes,  pretrained=True)
+        self.backbone = backbone
 
     def forward(self,x):
         # batch, channel, h, w
@@ -271,24 +272,27 @@ class Canny(nn.Module):
         x = self.add_canny(x)
         x = self.backbone(x)
         return x
-
-class Canny2(nn.Module):
-    def __init__(self,num_classes):
+    
+    
+class ArcfaceModel(nn.Module):
+    def __init__(self,backbone,num_features, num_classes):
         super().__init__()
-        self.add_canny = nn.Conv2d(4,3,1)
-        self.backbone = timm.create_model('swin_small_patch4_window7_224',num_classes =num_classes, pretrained=True)
+        self.backbone = backbone
+        self.arcface = ArcMarginProduct(in_features=num_features, out_features=num_classes)
+
+    def forward(self,x,labels):
+        feature = self.backbone(x)
+        logits = self.arcface(feature, labels)
+        return logits
+
+class ArcfaceModelInfer(nn.Module):
+    def __init__(self,backbone,num_features, num_classes):
+        super().__init__()
+        self.backbone = backbone
+        self.arcface = nn.Linear(in_features=num_features, out_features=num_classes,bias=False)
 
     def forward(self,x):
-        # batch, channel, h, w
-        canny=[]
-        s = np.uint8(x.detach().cpu().permute(0,2,3,1).numpy())
-        for n in s:
-            gray = cv2.cvtColor(n,cv2.COLOR_RGB2GRAY)
-            gray = cv2.Canny(gray, 100,200)
-            canny.append(torch.tensor(gray).float().unsqueeze(0)/255)
-        canny = torch.stack(canny).cuda()
-
-        x = torch.cat([canny,x],dim=1)
-        x = self.add_canny(x)
         x = self.backbone(x)
-        return x
+        x = F.normalize(x, dim=1)
+        logits = self.arcface(x)
+        return logits

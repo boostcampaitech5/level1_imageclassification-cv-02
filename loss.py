@@ -8,6 +8,13 @@ import math
 class FocalLoss(nn.Module):
     def __init__(self, weight=None,
                  gamma=2., reduction='mean'):
+        """_summary_
+
+        Args:
+            weight (list, optional): 가중치를 더할 list. Defaults to None.
+            gamma (float, optional): (1-p)**gamma . Defaults to 2..
+            reduction (str, optional): mean,sum 등의 return할 loss 계산. Defaults to 'mean'.
+        """
         nn.Module.__init__(self)
         self.weight = weight
         self.gamma = gamma
@@ -23,69 +30,48 @@ class FocalLoss(nn.Module):
             reduction=self.reduction
         )
     
-class ArcFaceLoss(nn.Module):
-    def __init__(self, num_classes = 3,scale=30.0, margin=0.5):
-        super(ArcFaceLoss, self).__init__()
-        self.num_classes = num_classes
-        # feat_dim 은 마지막 레이어의 출력 크기
-        self.feat_dim = num_classes
-        self.scale = scale
-        self.margin = margin
-        self.cos_m = math.cos(margin)
-        self.sin_m = math.sin(margin)
-        self.weights = nn.Parameter(torch.Tensor(num_classes, num_classes))
-        nn.init.xavier_uniform_(self.weights)
-
-    def forward(self, features, targets):
-        cosine = F.linear(F.normalize(features), F.normalize(self.weights.to(features.device)))
-        sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
-        phi = cosine * self.cos_m - sine * self.sin_m
-        one_hot = torch.zeros(cosine.size(), device=features.device)
-        one_hot.scatter_(1, targets.view(-1, 1).long(), 1)
-        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
-        output *= self.scale
-        loss = F.cross_entropy(output, targets)
-        return loss.mean()
 
 class ArcMarginProduct(nn.Module):
-    def __init__(self, in_feature=3, out_feature=3, s=32.0, m=0.50, easy_margin=False):
+    def __init__(self, in_features, out_features, s=30.0, m=0.50, easy_margin=False):
         super(ArcMarginProduct, self).__init__()
-        self.in_feature = in_feature
-        self.out_feature = out_feature
+        self.in_features = in_features
+        self.out_features = out_features
         self.s = s
         self.m = m
-        self.weight = Parameter(torch.Tensor(out_feature, in_feature))
+        self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
         nn.init.xavier_uniform_(self.weight)
 
         self.easy_margin = easy_margin
         self.cos_m = math.cos(m)
         self.sin_m = math.sin(m)
-
-        # make the function cos(theta+m) monotonic decreasing while theta in [0°,180°]
         self.th = math.cos(math.pi - m)
         self.mm = math.sin(math.pi - m) * m
 
-    def forward(self, x, label):
-        # cos(theta)
-        cosine = F.linear(F.normalize(x), F.normalize(self.weight.to(x.device)))
-        # cos(theta + m)
+    def forward(self, inputs, label):
+        cosine = F.linear(F.normalize(inputs), F.normalize(self.weight))
         sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
         phi = cosine * self.cos_m - sine * self.sin_m
-
         if self.easy_margin:
             phi = torch.where(cosine > 0, phi, cosine)
         else:
             phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
-        
-        one_hot = torch.zeros_like(cosine)
-        one_hot.scatter_(1, label.view(-1, 1), 1)
-        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
-        output = output * self.s
 
-        return output.mean()
+        one_hot = torch.zeros(cosine.size(), device=inputs.device)
+        one_hot.scatter_(1, label.view(-1, 1).long(), 1)
+        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        output *= self.s
+        return output
+
 
 class LabelSmoothingLoss(nn.Module):
     def __init__(self, classes=3, smoothing=0.1, dim=-1):
+        """_summary_
+
+        Args:
+            classes (int, optional): classes개수 만큼 smoothing. Defaults to 3.
+            smoothing (float, optional): smoothing 할 비율. Defaults to 0.1.
+            dim (int, optional): Defaults to -1.
+        """
         super(LabelSmoothingLoss, self).__init__()
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
@@ -103,7 +89,17 @@ class LabelSmoothingLoss(nn.Module):
 
 # https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
 class F1Loss(nn.Module):
+    """_summary_
+    label과 predict로 f1_score를 계산하여 Loss로 계산
+    return : 1-f1core
+    """
     def __init__(self, classes=3, epsilon=1e-7):
+        """_summary_
+
+        Args:
+            classes (int, optional): classes 개수. Defaults to 3.
+            epsilon (float, optional): _description_. Defaults to 1e-7.
+        """
         super().__init__()
         self.classes = classes
         self.epsilon = epsilon
@@ -133,7 +129,6 @@ _criterion_entrypoints = {
     'label_smoothing': LabelSmoothingLoss,
     'f1': F1Loss,
     'bce': nn.BCEWithLogitsLoss,
-    'arcface': ArcFaceLoss
 }
 
 
@@ -146,6 +141,17 @@ def is_criterion(criterion_name):
 
 
 def create_criterion(criterion_name, **kwargs):
+    """_summary_
+
+    Args:
+        criterion_name (str): ['cross_entropy', 'focal', 'label_smoothing', 'f1', 'bce'] 사용가능
+
+    Raises:
+        RuntimeError: 해당 하는 loss가 없다면 raise error
+
+    Returns:
+        loss (Module): 해당 하는 loss return
+    """
     if is_criterion(criterion_name):
         create_fn = criterion_entrypoint(criterion_name)
         criterion = create_fn(**kwargs)
