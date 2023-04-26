@@ -5,6 +5,8 @@ import timm
 import torch
 import cv2
 import numpy as np
+from loss import ArcMarginProduct
+
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -292,3 +294,14 @@ class Canny2(nn.Module):
         x = self.add_canny(x)
         x = self.backbone(x)
         return x
+    
+class ArcfaceModel(nn.Module):
+    def __init__(self,model, num_classes):
+        super().__init__()
+        self.model = model
+        self.arcface = ArcMarginProduct(in_feature=num_classes, out_feature=num_classes)
+
+    def forward(self,x,labels):
+        feature = self.model(x)
+        logits = self.arcface(feature, labels)
+        return logits

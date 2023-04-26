@@ -20,6 +20,7 @@ from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset, mixup_collate_fn, MySubset, CustomDataset
 from loss import create_criterion
+from optims import create_optimizer, create_scheduler
 from collections import Counter
 
 def rand_bbox(size, lam):
@@ -124,12 +125,8 @@ def train(data_dir, model_dir, args):
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
-        balancing_option = args.data_balancing,
         num_classes = num_classes,
         category = args.category,
-        mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232),
-
         val_ratio = args.val_ratio
     )
  
@@ -186,61 +183,14 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion = create_criterion(args.criterion).to(device)
-    '''
-    opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
-    optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=args.lr,
-        weight_decay=5e-4
-    )
-    '''
-    if args.optimizer == 'sgd':
-        optimizer = SGD(
-            filter(lambda p: p.requires_grad, model.parameters()),
-            lr=args.lr,
-            weight_decay=args.weight_decay
-        )
-    elif args.optimizer == 'momentum':
-        optimizer = SGD(
-            filter(lambda p: p.requires_grad, model.parameters()),
-            lr=args.lr,
-            momentum=args.momentum,
-            weight_decay=args.weight_decay,
-            nesterov=True
-        )
-    elif args.optimizer == 'adagrad':
-        optimizer = Adagrad(
-            filter(lambda p: p.requires_grad, model.parameters()),
-            lr=args.lr,
-            weight_decay=args.weight_decay
-        )
-    elif args.optimizer == 'adam':
-        optimizer = Adam(
-            filter(lambda p: p.requires_grad, model.parameters()),
-            lr=args.lr,
-            weight_decay=args.weight_decay
-        )
-    else:
-        raise NotImplementedError(
-            f"Unsupported optimizer: {args.optimizer}\nPlease enter either sgd, momentum, adagrad, or adam as the optimizer."
-        )
 
-    if args.scheduler == 'steplr':    
-        scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
-    elif args.scheduler == 'lambdalr':
-        scheduler = LambdaLR(optimizer, lr_lambda = lambda epoch : 0.95 ** epoch)
-    elif args.scheduler == 'exponentiallr':
-        scheduler = ExponentialLR(optimizer, gamma=args.gamma)
-    elif args.scheduler == 'cosineannealinglr':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
-    elif args.scheduler == 'cycliclr':
-        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
-    elif args.scheduler == 'reducelronplateau':
-        scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=args.factor, patience=args.patience, threshold=args.threshold )
-    else:
-        raise NotImplementedError(
-            f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
+    optimizer = create_optimizer(
+        args.optimizer, 
+        filter(lambda p: p.requires_grad, model.parameters()), 
+        args
         )
+    
+    scheduler = create_scheduler(args.scheduler,optimizer,args)
     
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -355,18 +305,7 @@ def train(data_dir, model_dir, args):
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_acc = max(best_val_acc, val_acc)
-            # # val_loss를 기준으로 저장
-            # best_val_acc = max(best_val_acc, val_acc)
-            # if val_loss < best_val_loss:
-            #     print(f"New best model for val loss : {val_loss:4.2}! saving the best model..")
-            #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-            #     best_val_loss = val_loss
-            # val_acc를 기준으로 저장
-            # best_val_loss = min(best_val_loss, val_loss)
-            # if val_acc > best_val_acc:
-            #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
-            #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-            #     best_val_acc = val_acc
+
             if val_score > best_val_score:
                 early_stop = 0
                 print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
@@ -426,13 +365,9 @@ def ktrain(data_dir, model_dir, args):
     val_transform_module = getattr(import_module("dataset"), "BaseAugmentation")
     train_transform = train_transform_module(
         resize=args.resize,
-        mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232)
     )
     val_transform = val_transform_module(
         resize=args.resize,
-        mean = (0.56019358,0.52410121,0.501457),
-        std = (0.61664625, 0.58719909, 0.56828232)
     )
 
     # -- dataset
@@ -589,55 +524,15 @@ def ktrain(data_dir, model_dir, args):
         model = torch.nn.DataParallel(model)
 
         # -- loss & metric
-        criterion = create_criterion(args.criterion)  # default: cross_entropy
- 
-        if args.optimizer == 'sgd':
-            optimizer = SGD(
-                filter(lambda p: p.requires_grad, model.parameters()),
-                lr=args.lr,
-                weight_decay=args.weight_decay
-            )
-        elif args.optimizer == 'momentum':
-            optimizer = SGD(
-                filter(lambda p: p.requires_grad, model.parameters()),
-                lr=args.lr,
-                momentum=args.momentum,
-                weight_decay=args.weight_decay,
-                nesterov=True
-            )
-        elif args.optimizer == 'adagrad':
-            optimizer = Adagrad(
-                filter(lambda p: p.requires_grad, model.parameters()),
-                lr=args.lr,
-                weight_decay=args.weight_decay
-            )
-        elif args.optimizer == 'adam':
-            optimizer = Adam(
-                filter(lambda p: p.requires_grad, model.parameters()),
-                lr=args.lr,
-                weight_decay=args.weight_decay
-            )
-        else:
-            raise NotImplementedError(
-                f"Unsupported optimizer: {args.optimizer}\nPlease enter either sgd, momentum, adagrad, or adam as the optimizer."
-            )
+        criterion = create_criterion(args.criterion).to(device)
 
-        if args.scheduler == 'steplr':    
-            scheduler = StepLR(optimizer, args.lr_decay_step, gamma=args.gamma)
-        elif args.scheduler == 'lambdalr':
-            scheduler = LambdaLR(optimizer, lr_lambda = lambda epoch : 0.95 ** epoch)
-        elif args.scheduler == 'exponentiallr':
-            scheduler = ExponentialLR(optimizer, gamma=args.gamma)
-        elif args.scheduler == 'cosineannealinglr':
-            scheduler = CosineAnnealingLR(optimizer, T_max=args.tmax, eta_min=args.lr*0.01)
-        elif args.scheduler == 'cycliclr':
-            scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=args.maxlr, step_size_up=args.tmax, mode=args.mode)
-        elif args.scheduler == 'reducelronplateau':
-            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.factor, patience=args.patience, threshold=args.threshold )
-        else:
-            raise NotImplementedError(
-                f"Unsupported scheduler: {args.scheduler}\nPlease enter either steplr, lambdalr, cosineannealinglr, cycliclr or reducelronplateau as the scheduler."
+        optimizer = create_optimizer(
+            args.optimizer, 
+            filter(lambda p: p.requires_grad, model.parameters()), 
+            args
             )
+        
+        scheduler = create_scheduler(args.scheduler,optimizer,args)
         
         # -- logging
         save_dir = increment_path(os.path.join(model_dir, args.name+f"_{k+1}fold"))
@@ -772,8 +667,6 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--data_balancing', type=str, default='imbalance',choices=["imbalance","10s","gene"], help="balance such as imbalance, generation, 10s (default: imbalance)")
-    parser.add_argument('--age_lable_num', type=int, default=3, help= "number of age label is 3 OR 6 (default : 3)")
     parser.add_argument('--mixup', action='store_true', help="use mixup 0.2")
     parser.add_argument('--kfold', type=int, help="using Kfold k")
     parser.add_argument('--weightsampler', action='store_true', help="using torch WeightedRamdomSampling")
