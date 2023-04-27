@@ -8,7 +8,7 @@ import torch
 import json
 import os
 
-from ..datasets.base_dataset import MaskBaseDataset
+from datasets.base_dataset import MaskBaseDataset
 from importlib import import_module
 
 
@@ -143,19 +143,19 @@ def load_model(saved_model, num_classes, device,json_data):
     Returns:
         model : weight를 불러온 모델 
     """
-    model_module = getattr(import_module("../models/my_model"), json_data["model"])  # config.json 에 있는 파일
+    model_module = getattr(import_module("models.my_model"), json_data["model"])  # config.json 에 있는 파일
     model = model_module(
         num_classes=num_classes,
     )
     if json_data['canny']:
         backbone = model
-        model_module = getattr(import_module("../models/my_model"), "Canny")
+        model_module = getattr(import_module("models.my_model"), "Canny")
         model = model_module(
             backbone = backbone,
         )
     elif json_data['arcface']:
         backbone = model_module(num_classes=1000)
-        model_module = getattr(import_module("../models/my_model"), "ArcfaceModelInfer")
+        model_module = getattr(import_module("models.my_model"), "ArcfaceModelInfer")
         model = model_module(
             backbone = backbone,
             num_features = 1000,

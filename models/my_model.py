@@ -5,7 +5,7 @@ import timm
 import torch
 import cv2
 import numpy as np
-from ..optimizers.loss import ArcMarginProduct
+from optimizers.loss import ArcMarginProduct
 
 class MaskResnet18(nn.Module):
     def __init__(self, num_classes):

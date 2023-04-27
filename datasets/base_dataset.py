@@ -7,7 +7,6 @@ from typing import Tuple, List
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from ..utils.util import is_image_file
 
 
 class MaskLabels(int, Enum):

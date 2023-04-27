@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader
 import numpy as np
 import torch.nn as nn
 
-from .datasets.my_dataset import CustomDataset
-from .utils.util import read_json, load_model, get_numclass
+from datasets.my_dataset import CustomDataset
+from utils.util import read_json, load_model, get_numclass
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
@@ -24,7 +24,7 @@ def inference(data_dir, model_dir, output_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    transform_cls = getattr(import_module("datasets/augmentation"), args.augmentation)
+    transform_cls = getattr(import_module("datasets.augmentation"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
     )
