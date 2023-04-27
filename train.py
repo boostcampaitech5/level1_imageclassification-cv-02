@@ -31,19 +31,19 @@ def train(data_dir, model_dir, args):
 
     for k,(train_loader, val_loader) in enumerate(zip(t_loaders,v_loaders)):
         # -- model
-        model_module = getattr(import_module("models"), args.model)  # default: BaseModel
+        model_module = getattr(import_module("models.my_model"), args.model)  # default: BaseModel
         model = model_module(
             num_classes=args.num_classes
         )
         if args.canny:
             backbone = model
-            model_module = getattr(import_module("models"), "Canny")
+            model_module = getattr(import_module("models.my_model"), "Canny")
             model = model_module(
                 backbone = backbone,
             )
         elif args.arcface:
             backbone = model_module(num_classes=1000)
-            model_module = getattr(import_module("models"), "ArcfaceModel")
+            model_module = getattr(import_module("models.my_model"), "ArcfaceModel")
             model = model_module(
                 backbone = backbone,
                 num_features = 1000,
@@ -205,7 +205,7 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 1)')
+    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 30)')
     
     # data
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')

@@ -24,7 +24,7 @@ def inference(data_dir, model_dir, output_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    transform_cls = getattr(import_module("datasets"), args.augmentation)
+    transform_cls = getattr(import_module("datasets.augmentation"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
     )

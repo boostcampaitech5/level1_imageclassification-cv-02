@@ -1,5 +1,6 @@
 from torch.optim import SGD, Adagrad, Adam
 
+
 OPTIMIZER_ENTRYPOINTS = {
     'sgd': SGD,
     'adagrad': Adagrad,
@@ -45,4 +46,3 @@ def create_optimizer(optimizer_name, parameter, args):
     else:
         raise RuntimeError('Unknown optimizer (%s)' % optimizer_name)
     return optimizer
-
