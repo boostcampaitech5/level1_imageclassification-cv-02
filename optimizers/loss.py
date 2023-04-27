@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from torch.nn import Parameter
 import torch.nn.functional as F
 import math
+from ._util import criterion_entrypoint, is_criterion
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
@@ -121,23 +121,6 @@ class F1Loss(nn.Module):
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
-
-
-_criterion_entrypoints = {
-    'cross_entropy': nn.CrossEntropyLoss,
-    'focal': FocalLoss,
-    'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss,
-    'bce': nn.BCEWithLogitsLoss,
-}
-
-
-def criterion_entrypoint(criterion_name):
-    return _criterion_entrypoints[criterion_name]
-
-
-def is_criterion(criterion_name):
-    return criterion_name in _criterion_entrypoints
 
 
 def create_criterion(criterion_name, **kwargs):
