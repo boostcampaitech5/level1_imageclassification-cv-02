@@ -1,4 +1,17 @@
-from ._util import optimizer_entrypoint, is_optimizer
+from torch.optim import SGD, Adagrad, Adam
+
+OPTIMIZER_ENTRYPOINTS = {
+    'sgd': SGD,
+    'adagrad': Adagrad,
+    'adam': Adam,
+}
+
+def optimizer_entrypoint(optimizer_name):
+    return OPTIMIZER_ENTRYPOINTS[optimizer_name]
+
+
+def is_optimizer(optimizer_name):
+    return optimizer_name in OPTIMIZER_ENTRYPOINTS
 
 
 def create_optimizer(optimizer_name, parameter, args):

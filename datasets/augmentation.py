@@ -1,7 +1,7 @@
 import torch
 from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop,\
 ColorJitter, RandomRotation, RandomHorizontalFlip
-from .base_dataset import MaskLabels, GenderLabels, AgeLabels
+from ._util import MaskLabels, GenderLabels, AgeLabels
 import numpy as np
 
 class BaseAugmentation:

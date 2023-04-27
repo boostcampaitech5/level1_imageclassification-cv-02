@@ -13,7 +13,7 @@ import multiprocessing
 
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from sklearn.model_selection import StratifiedKFold
-from .base_dataset import MaskLabels, GenderLabels, AgeLabels, FILE_NAME
+from ._util import GenderLabels, AgeLabels, FILE_NAME
 from .augmentation import mixup_collate_fn
 
 
@@ -92,8 +92,8 @@ def make_dataloader(data_dir,args):
     train_dataloader = []
     val_dataloader = []
 
-    train_transform_module = getattr(import_module("augmentation"), args.augmentation)  # default: CustomAugmentation
-    val_transform_module = getattr(import_module("augmentation"), "BaseAugmentation")
+    train_transform_module = getattr(import_module("datasets"), args.augmentation)  # default: CustomAugmentation
+    val_transform_module = getattr(import_module("datasets"), "BaseAugmentation")
     train_transform = train_transform_module(
         resize=args.resize,
     )
@@ -251,7 +251,7 @@ def make_dataloader(data_dir,args):
             train_dataloader.append(train_loader)
             val_dataloader.append(val_loader)
     else:
-        dataset_module = getattr(import_module("base_dataset"), args.dataset)  # default: MaskBaseDataset
+        dataset_module = getattr(import_module("datasets"), args.dataset)  # default: MaskBaseDataset
         dataset = dataset_module(
             data_dir=data_dir,
             num_classes = args.num_classes,

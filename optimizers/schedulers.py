@@ -1,4 +1,22 @@
-from ._util import scheduler_entrypoint, is_scheduler
+from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
+
+
+SCHEDULER_ENTRYPOINTS = {
+    'steplr': StepLR,
+    'lambdalr': LambdaLR,
+    'exponentiallr': ExponentialLR,
+    'cosineannealinglr': CosineAnnealingLR,
+    'cycliclr': CyclicLR,
+    'reducelronplateau': ReduceLROnPlateau
+}
+
+
+def scheduler_entrypoint(scheduler_name):
+    return SCHEDULER_ENTRYPOINTS[scheduler_name]
+
+
+def is_scheduler(scheduler_name):
+    return scheduler_name in SCHEDULER_ENTRYPOINTS
 
 
 def create_scheduler(scheduler_name, optimizer, args):

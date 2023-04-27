@@ -31,19 +31,19 @@ def train(data_dir, model_dir, args):
 
     for k,(train_loader, val_loader) in enumerate(zip(t_loaders,v_loaders)):
         # -- model
-        model_module = getattr(import_module("models/my_model"), args.model)  # default: BaseModel
+        model_module = getattr(import_module("models"), args.model)  # default: BaseModel
         model = model_module(
             num_classes=args.num_classes
         )
         if args.canny:
             backbone = model
-            model_module = getattr(import_module("models/my_model"), "Canny")
+            model_module = getattr(import_module("models"), "Canny")
             model = model_module(
                 backbone = backbone,
             )
         elif args.arcface:
             backbone = model_module(num_classes=1000)
-            model_module = getattr(import_module("models/my_model"), "ArcfaceModel")
+            model_module = getattr(import_module("models"), "ArcfaceModel")
             model = model_module(
                 backbone = backbone,
                 num_features = 1000,
@@ -220,7 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('--cutmix', action='store_true', help='use cutmix')
     
     # model
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    parser.add_argument('--model', type=str, default='MaskResnet18', help='model type (default: MaskResnet18)')
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
     parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
     parser.add_argument('--arcface', action='store_true', help ="using arcface loss")
