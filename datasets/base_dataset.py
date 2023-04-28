@@ -138,23 +138,43 @@ class MaskBaseDataset(Dataset):
         return image, label
 
     def __len__(self):
+        """_summary_
+
+        Returns:
+            len (int): Dataset 크기 
+        """
         return len(self.image_paths)
 
     def get_mask_label(self, index) -> MaskLabels:
         """_summary_
-        index에 해당 하는 mask label return
+
+        Args:
+            index (int): index
+
+        Returns:
+            MaskLabels: index에 해당하는 mask label return
         """
         return self.mask_labels[index]
 
     def get_gender_label(self, index) -> GenderLabels:
         """_summary_
-        index에 해당 하는 gender label return
+
+        Args:
+            index (int): index
+
+        Returns:
+            GenderLabels: index에 해당하는 gender label return
         """
         return self.gender_labels[index]
 
     def get_age_label(self, index) -> AgeLabels:
         """_summary_
-        index에 해당 하는 age label return
+
+        Args:
+            index (int): index
+
+        Returns:
+            AgeLabels: index에 해당하는 age label return
         """
         return self.age_labels[index]
 

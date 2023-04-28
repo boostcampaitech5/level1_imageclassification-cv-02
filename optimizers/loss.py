@@ -31,7 +31,20 @@ class FocalLoss(nn.Module):
     
 
 class ArcMarginProduct(nn.Module):
+    """_summary_
+    ArcFace Loss 를 사용하기 위한 class
+    
+    """
     def __init__(self, in_features, out_features, s=30.0, m=0.50, easy_margin=False):
+        """_summary_
+
+        Args:
+            in_features (int): model의 마지막 layer의 채널 수 
+            out_features (int): 예측할 num_classes 수
+            s (float, optional): scale. Defaults to 30.0.
+            m (float, optional): margin. Defaults to 0.50.
+            easy_margin (bool, optional): arcface margin을 동적으로 조정. Defaults to False.
+        """
         super(ArcMarginProduct, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -47,6 +60,15 @@ class ArcMarginProduct(nn.Module):
         self.mm = math.sin(math.pi - m) * m
 
     def forward(self, inputs, label):
+        """_summary_
+
+        Args:
+            inputs (tensor): input
+            label (tensor): label
+
+        Returns:
+            outout (tensor): margin을 계산한 output
+        """
         cosine = F.linear(F.normalize(inputs), F.normalize(self.weight))
         sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
         phi = cosine * self.cos_m - sine * self.sin_m
@@ -77,12 +99,21 @@ class LabelSmoothingLoss(nn.Module):
         self.cls = classes
         self.dim = dim
 
-    def forward(self, pred, target):
+    def forward(self, pred, labels):
+        """_summary_
+
+        Args:
+            pred (tensor): 모델이 예측한 tensor
+            labels (tensor): 정답 label
+
+        Returns:
+            loss (tensor): label smoothing을 계산한 loss
+        """
         pred = pred.log_softmax(dim=self.dim)
         with torch.no_grad():
             true_dist = torch.zeros_like(pred)
             true_dist.fill_(self.smoothing / (self.cls - 1))
-            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+            true_dist.scatter_(1, labels.data.unsqueeze(1), self.confidence)
         return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
 
 
@@ -132,10 +163,26 @@ CRITERION_ENTRYPOINTS = {
 
 
 def criterion_entrypoint(criterion_name):
+    """_summary_
+    CRITERION_ENTRYPOINTS에 해당하는 Loss return
+    Args:
+        criterion_name (str): crtierion name
+
+    Returns:
+        criterion (nn.module): criterion 
+    """
     return CRITERION_ENTRYPOINTS[criterion_name]
 
 
 def is_criterion(criterion_name):
+    """_summary_
+    CRITERION_ENTRYPOINTS에 해당하는 Loss 인지 확인
+    Args:
+        criterion_name (str): crtierion name
+
+    Returns:
+        bool : 있다면 True
+    """
     return criterion_name in CRITERION_ENTRYPOINTS
 
 

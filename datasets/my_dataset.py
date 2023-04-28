@@ -53,6 +53,11 @@ class MySubset(Subset):
         return x,y 
 
     def __len__(self):
+        """_summary_
+
+        Returns:
+            len (int): Subset data 크기
+        """
         return len(self.subset)
     
 
@@ -127,6 +132,7 @@ def make_loader(set, collate_fn, batch_size , shuffle):
 
 def make_dataset(data_dir,train_transform,val_transform,collate_fn,args):
     """_summary_
+    Base dataset을 만드는 함수
 
     Args:
         data_dir (str): data가 있는 파일 경로
@@ -165,6 +171,20 @@ def make_dataset(data_dir,train_transform,val_transform,collate_fn,args):
 
 
 def make_kfold_dataset(data_dir,train_transform,val_transform,collate_fn,args):
+    """_summary_
+    Kfold_dataset을 만드는 함수 
+    
+    Args:
+        data_dir (str): data가 있는 파일 경로
+        train_transform (transform): train_set 에 적용시킬 transform 
+        val_transform (transform): validation_set 에 적용시킬 transform
+        collate_fn (func): loader에 적용 할 collate_fn 함수 
+        args : train argument
+
+    Returns:
+        train_loader, val_loader (list): list에 담겨진 loader
+
+    """
     train_dataloader = []
     val_dataloader = []
 
@@ -305,7 +325,16 @@ def make_kfold_dataset(data_dir,train_transform,val_transform,collate_fn,args):
 
 
 def make_dataloader(data_dir,args):
+    """_summary_
+    학습에 사용할 Dataloader를 만드는 전체 함수
 
+    Args:
+        data_dir (str): data가 있는 파일 경로
+        args : train argument
+
+    Returns:
+        train_loader, val_loader (list): list에 담겨진 loader
+    """
     train_transform_module = getattr(import_module("datasets.augmentation"), args.augmentation)  # default: CustomAugmentation
     val_transform_module = getattr(import_module("datasets.augmentation"), "BaseAugmentation")
     train_transform = train_transform_module(
