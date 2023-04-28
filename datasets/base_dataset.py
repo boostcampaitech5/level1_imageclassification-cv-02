@@ -7,7 +7,7 @@ from typing import Tuple, List
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from ._util import MaskLabels, GenderLabels, AgeLabels, FILE_NAME
+from datasets._util import MaskLabels, GenderLabels, AgeLabels, FILE_NAME
 
 
 class MaskBaseDataset(Dataset):

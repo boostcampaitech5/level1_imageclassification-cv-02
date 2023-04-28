@@ -121,6 +121,7 @@ class F1Loss(nn.Module):
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
 
+
 CRITERION_ENTRYPOINTS = {
     'cross_entropy': nn.CrossEntropyLoss,
     'focal': FocalLoss,
@@ -128,6 +129,7 @@ CRITERION_ENTRYPOINTS = {
     'f1': F1Loss,
     'bce': nn.BCEWithLogitsLoss,
 }
+
 
 def criterion_entrypoint(criterion_name):
     return CRITERION_ENTRYPOINTS[criterion_name]
@@ -155,18 +157,3 @@ def create_criterion(criterion_name, **kwargs):
     else:
         raise RuntimeError('Unknown loss (%s)' % criterion_name)
     return criterion
-
-CRITERION_ENTRYPOINTS = {
-    'cross_entropy': nn.CrossEntropyLoss,
-    'focal': FocalLoss,
-    'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss,
-    'bce': nn.BCEWithLogitsLoss,
-}
-
-def criterion_entrypoint(criterion_name):
-    return CRITERION_ENTRYPOINTS[criterion_name]
-
-
-def is_criterion(criterion_name):
-    return criterion_name in CRITERION_ENTRYPOINTS

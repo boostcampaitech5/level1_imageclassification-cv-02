@@ -63,9 +63,9 @@ class AgeLabels(int, Enum):
         except Exception:
             raise ValueError(f"Age value should be numeric, {value}")
 
-        if value < 29:
+        if value < 30:
             return cls.YOUNG
-        elif value < 58:
+        elif value < 60:
             return cls.MIDDLE
         else:
             return cls.OLD
