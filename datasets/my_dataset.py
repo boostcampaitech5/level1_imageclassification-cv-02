@@ -74,6 +74,14 @@ class CustomDataset(Dataset):
         self.transform = transform
     
     def __getitem__(self, idx):
+        """_summary_
+
+        Args:
+            idx : _description_
+
+        Returns:
+            image ,(label) (tensor): label이 없다면 image 만 return
+        """
         x = Image.open(self.image_paths[idx])
 
         if self.transform:
@@ -85,22 +93,52 @@ class CustomDataset(Dataset):
             return x
 
     def __len__(self):
+        """_summary_
+
+        Returns:
+            len (int): dataset 길이
+        """
         return len(self.image_paths)
 
-def make_loader(set, collate_fn, shuffle, args):
+
+def make_loader(set, collate_fn, batch_size , shuffle):
+    """_summary_
+
+    Args:
+        set (Dataset): loader에 사용할 Dataset
+        collate_fn (func): collate_fn 함수
+        batch_size (int): batch_size 
+        shuffle (bool): loader를 shuffle 할지 안 할지
+
+    Returns:
+        Loader (DataLoader): Loader 
+    """
     loader = DataLoader(
             set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=shuffle,
-            pin_memory=torch.cuda.is_available(),
-            collate_fn=collate_fn,
-            drop_last=True,
+            batch_size = batch_size,
+            num_workers = multiprocessing.cpu_count() // 2,
+            shuffle = shuffle,
+            pin_memory = torch.cuda.is_available(),
+            collate_fn = collate_fn,
+            drop_last = True,
         )
     return loader 
 
 
 def make_dataset(data_dir,train_transform,val_transform,collate_fn,args):
+    """_summary_
+
+    Args:
+        data_dir (str): data가 있는 파일 경로
+        train_transform (transform): train_set 에 적용시킬 transform 
+        val_transform (transform): validation_set 에 적용시킬 transform
+        collate_fn (func): loader에 적용 할 collate_fn 함수 
+        args : train argument
+
+    Returns:
+        train_loader, val_loader (list): list에 담겨진 loader
+
+    """
     train_dataloader = []
     val_dataloader = []
 
@@ -111,13 +149,14 @@ def make_dataset(data_dir,train_transform,val_transform,collate_fn,args):
         category = args.category,
         val_ratio = args.val_ratio
     )
+
     train_set, val_set = dataset.split_dataset()
     train_set = MySubset(train_set, transform = train_transform)
     val_set = MySubset(val_set, transform = val_transform)
 
-    train_loader = make_loader(train_set, collate_fn= collate_fn, shuffle=True, args = args)
+    train_loader = make_loader(train_set, collate_fn, batch_size = args.batch_size, shuffle=True)
 
-    val_loader = make_loader(val_set, collate_fn = collate_fn, shuffle=False, args= args)
+    val_loader = make_loader(val_set, collate_fn, batch_size = args.valid_batch_size, shuffle=False)
 
     train_dataloader.append(train_loader)
     val_dataloader.append(val_loader)
@@ -254,9 +293,9 @@ def make_kfold_dataset(data_dir,train_transform,val_transform,collate_fn,args):
                 drop_last=True,
             )
         else:
-            train_loader = make_loader(train_set, collate_fn, shuffle=True, args = args)
+            train_loader = make_loader(train_set, collate_fn, args.batch_size, shuffle=True)
 
-        val_loader = make_loader(val_set, collate_fn=None, shuffle=False, args = args)
+        val_loader = make_loader(val_set, None, args.valid_batch_size, shuffle=False)
 
         train_dataloader.append(train_loader)
         val_dataloader.append(val_loader)
