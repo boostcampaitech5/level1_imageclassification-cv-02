@@ -5,6 +5,10 @@ import math
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
+    """_summary_
+    Focal Loss를 사용하기 위한 class
+
+    """
     def __init__(self, weight=None,
                  gamma=2., reduction='mean'):
         """_summary_
@@ -20,6 +24,15 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, input_tensor, target_tensor):
+        """_summary_
+
+        Args:
+            input_tensor (tensor): 모델이 예측한 결과값
+            target_tensor (tensor): 정답 label
+
+        Returns:
+            tensor: Focal Loss로 계산한 loss 값
+        """
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
         return F.nll_loss(
@@ -85,6 +98,10 @@ class ArcMarginProduct(nn.Module):
 
 
 class LabelSmoothingLoss(nn.Module):
+    """_summary_
+    LabelSmoothing Loss를 사용하기 위한 class
+    
+    """
     def __init__(self, classes=3, smoothing=0.1, dim=-1):
         """_summary_
 
@@ -121,7 +138,7 @@ class LabelSmoothingLoss(nn.Module):
 class F1Loss(nn.Module):
     """_summary_
     label과 predict로 f1_score를 계산하여 Loss로 계산
-    return : 1-f1core
+
     """
     def __init__(self, classes=3, epsilon=1e-7):
         """_summary_
@@ -135,6 +152,15 @@ class F1Loss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
+        """_summary_
+
+        Args:
+            y_pred (tensor): 모델이 예측한 결과값
+            y_true (tensor): 정답 label
+
+        Returns:
+            tensor: f1 score로 계산한 loss
+        """
         assert y_pred.ndim == 2
         assert y_true.ndim == 1
         y_true = F.one_hot(y_true, self.classes).to(torch.float32)
@@ -181,7 +207,7 @@ def is_criterion(criterion_name):
         criterion_name (str): crtierion name
 
     Returns:
-        bool : 있다면 True
+        bool: 있다면 True, 없으면 False
     """
     return criterion_name in CRITERION_ENTRYPOINTS
 
