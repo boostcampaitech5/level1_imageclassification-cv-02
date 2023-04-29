@@ -10,8 +10,7 @@ from optimizers.loss import ArcMarginProduct
 class MaskResnet18(nn.Module):
     """_summary_
     
-    ResNet-18 기반의 마스크 착용 여부 분류 모델 클래스 (아래 다른 클래스들도 이와 동일하지만 
-    VIT,Swin Transformer,CaotNet 은 size를 224*224 또는 384*384 로 맞춰주어야 함)
+    ResNet-18 기반의 마스크 착용 여부 분류 모델 클래스
 
     Args:
         num_classes (int): 분류할 클래스 수
@@ -30,6 +29,17 @@ class MaskResnet18(nn.Module):
 
 
 class MaskResnet34(nn.Module):
+    """_summary_
+    
+    ResNet-34 기반의 마스크 착용 여부 분류 모델 클래스
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('resnet34',num_classes =num_classes,  pretrained=True)
@@ -40,6 +50,16 @@ class MaskResnet34(nn.Module):
 
 
 class MaskResnet50(nn.Module):
+    """_summary_
+    
+    ResNet-50 기반의 마스크 착용 여부 분류 모델 클래스
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('resnet50',num_classes =num_classes,  pretrained=True)
@@ -50,6 +70,17 @@ class MaskResnet50(nn.Module):
 
 
 class MaskResnet101(nn.Module):
+    """_summary_
+    
+    ResNet-101 기반의 마스크 착용 여부 분류 모델 클래스
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('resnet101',num_classes =num_classes,  pretrained=True)
@@ -60,6 +91,17 @@ class MaskResnet101(nn.Module):
 
 
 class MaskEfficientNet_b0(nn.Module):
+    """_summary_
+    
+    EfficientNet b0 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size를 224*224일 때 최적화되어 있음
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b0',num_classes =num_classes, pretrained=True)
@@ -70,6 +112,18 @@ class MaskEfficientNet_b0(nn.Module):
     
 
 class MaskEfficientNet_b1(nn.Module):
+    """_summary_
+    
+    EfficientNet b2 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 260*260일 때 최적화되어 있음
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b1',num_classes =num_classes, pretrained=True)
@@ -80,6 +134,18 @@ class MaskEfficientNet_b1(nn.Module):
     
 
 class MaskEfficientNet_b2(nn.Module):
+    """_summary_
+    
+    EfficientNet b3 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 300*300일 때 최적화되어 있음
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b2',num_classes =num_classes, pretrained=True)
@@ -90,6 +156,18 @@ class MaskEfficientNet_b2(nn.Module):
 
 
 class MaskEfficientNet_b3(nn.Module):
+    """_summary_
+    
+    EfficientNet b4 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 380*380일 때 최적화되어 있음
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b3',num_classes =num_classes, pretrained=True)
@@ -100,6 +178,18 @@ class MaskEfficientNet_b3(nn.Module):
     
 
 class MaskEfficientNet_b4(nn.Module):
+    """_summary_
+    
+    TinyVIT 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224일 때 최적화되어 있음
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('efficientnet_b4',num_classes =num_classes, pretrained=True)
@@ -110,6 +200,18 @@ class MaskEfficientNet_b4(nn.Module):
 
 
 class MaskTinyVIT(nn.Module):
+    """_summary_
+    
+    TinyVIT 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('vit_tiny_patch16_224',num_classes =num_classes, pretrained=True)
@@ -120,6 +222,18 @@ class MaskTinyVIT(nn.Module):
 
 
 class MaskSmallVIT(nn.Module):
+    """_summary_
+    
+    SmallVIT 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('vit_small_patch16_224',num_classes =num_classes, pretrained=True)
@@ -130,6 +244,18 @@ class MaskSmallVIT(nn.Module):
     
 
 class MaskSwinSmallWindow(nn.Module):
+    """_summary_
+    
+    SwinSmallWindow 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('swin_small_patch4_window7_224',num_classes =num_classes, pretrained=True)
@@ -140,6 +266,18 @@ class MaskSwinSmallWindow(nn.Module):
 
 
 class MaskSwinSmall(nn.Module):
+    """_summary_
+    
+    SwinSmall 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('swin_s3_small_224',num_classes =num_classes, pretrained=True)
@@ -150,6 +288,18 @@ class MaskSwinSmall(nn.Module):
 
 
 class MaskSwinBase(nn.Module):
+    """_summary_
+    
+    SwinBase 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('swin_s3_base_224',num_classes =num_classes, pretrained=True)
@@ -160,6 +310,18 @@ class MaskSwinBase(nn.Module):
 
 
 class MaskSwinBaseWindow(nn.Module):
+    """_summary_
+    
+    SwinBaseWindow 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('swin_base_patch4_window7_224',num_classes =num_classes, pretrained=True)
@@ -170,6 +332,18 @@ class MaskSwinBaseWindow(nn.Module):
     
 
 class MaskMobileNet_125(nn.Module):
+    """_summary_
+    
+    MobileNet_125 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 224*224, 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('mobilevitv2_125',num_classes =num_classes, pretrained=True)
@@ -180,6 +354,18 @@ class MaskMobileNet_125(nn.Module):
 
 
 class MaskMobileNet_150(nn.Module):
+    """_summary_
+    
+    obileNet_150 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = timm.create_model('mobilevitv2_150',num_classes =num_classes, pretrained=True)
@@ -190,6 +376,18 @@ class MaskMobileNet_150(nn.Module):
     
 
 class Coatnet(nn.Module):
+    """_summary_
+    
+    SwinBaseWindo 기반의 마스크 착용 여부 분류 모델 클래스
+    input image size가 384*384이여야함
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self,num_classes):
         super().__init__()
         self.backbone = timm.create_model("hf_hub:timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k",num_classes=num_classes, pretrained=True)

@@ -12,10 +12,30 @@ SCHEDULER_ENTRYPOINTS = {
 
 
 def scheduler_entrypoint(scheduler_name):
+    """_summary_
+    입력된 scheduler_name를 알맞은 대소문자로 바꿔줌
+    SCHEDULER_ENTRYPOINTS(dict)에 해당하는 key를 넣으면 value를 출력
+
+    Args:
+        scheduler_name (str): ["steplr", "lambdalr","exponentialLR", "cosineannealinglr", "cycliclr", "reducelronplateau"] 사용가능
+
+    Returns:
+        알맞은 대소문자로 바꾼 scheduler_name(str) return
+    """
     return SCHEDULER_ENTRYPOINTS[scheduler_name]
 
 
 def is_scheduler(scheduler_name):
+    """_summary_
+    입력된 scheduler_name에 해당하는 지 확인
+    SCHEDULER_ENTRYPOINTS(dict)에 해당하는 key가 있는 확인
+
+    Args:
+        scheduler_name(str): [sgd, adagrad, adam] 사용가능
+
+    Returns:
+        Boolean: 해당하는 값이 있으면 True, 없으면 False
+    """
     return scheduler_name in SCHEDULER_ENTRYPOINTS
 
 

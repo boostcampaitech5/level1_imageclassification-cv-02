@@ -14,8 +14,16 @@ from utils.util import read_json, load_model, get_numclass
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
+    """_summary_
+    model_dir에 있는 모델을 args에 따라 data_dir에 있는 데이터 label을 예측한 뒤 예측값을 output_dir에 csv파일로 저장
+
+    Args:
+        data_dir (str): 라벨을 예측할 데이터가 있는 파일 경로
+        model_dir (str) : 학습한 model을 불러올 파일 경로
+        output_dir(str) : 예측한 데이터를 저장할 파일 경로
+        args : inference argument
     """
-    """
+    # -- settings
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
@@ -29,7 +37,10 @@ def inference(data_dir, model_dir, output_dir, args):
         resize = args.resize,
     )
 
+    # data transform
     dataset = CustomDataset(img_paths, transform = transform)
+
+    # dataloader
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -39,6 +50,7 @@ def inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
 
+    # -- ensemble
     if args.ensemble:
         dirlist = []
         for p in os.listdir(model_dir):
@@ -50,6 +62,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
     preds = []
     with torch.no_grad():
+        # predict loop
         for idx, images in enumerate(loader):
             images = images.to(device)
             vote = {
@@ -59,6 +72,7 @@ def inference(data_dir, model_dir, output_dir, args):
                 "multi" : np.array([[0.]*18 for _ in range(images.shape[0])])
                 }
 
+            # predict 수행
             for model_path in dirlist:
                 json_data = read_json(os.path.join(model_path, 'config.json'))
                 
@@ -74,6 +88,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
                 vote[category] += logit.cpu().numpy()
             
+            # 한번에 18개의 label로 나누는 경우와, 카테고리를 나누어서 구한 뒤 통합하는 경우
             if category == "multi":
                 pred = np.argmax(vote[category],axis=-1)
             else:
@@ -85,6 +100,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
             preds.extend(list(pred))
 
+    # 예측 label 저장
     info['ans'] = preds
     save_path = os.path.join(output_dir, args.name_csv+".csv")
     info.to_csv(save_path, index=False)

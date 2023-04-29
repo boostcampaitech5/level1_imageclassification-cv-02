@@ -18,6 +18,14 @@ from utils.util import seed_everything, increment_path, get_lr,get_numclass, mak
 
 
 def train(data_dir, model_dir, args):
+    """_summary_
+    주어진 args에 따라 data_dir으로 모델을 학습 후, model_dir에 모델 및 성능 저장
+
+    Args:
+        data_dir (str): train data가 있는 파일 경로
+        model_dir (str) : 학습한 model을 저장할 파일 경로
+        args : train argument
+    """
     seed_everything(args.seed)
 
     # -- settings
@@ -175,6 +183,7 @@ def train(data_dir, model_dir, args):
                 best_val_acc = max(best_val_acc, val_acc)
                 best_val_loss = min(best_val_loss, val_loss)
 
+                # early stopping
                 if val_score > best_val_score:
                     early_stop = 0
                     print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
@@ -187,6 +196,8 @@ def train(data_dir, model_dir, args):
                     elif early_stop > args.early_stopping_patience:
                         print("Early Stopping")
                         break
+                
+                # 모델 성능 print
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
                 print(
                     f"{k} [Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
@@ -252,6 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
+    # /opt/ml/input
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
 

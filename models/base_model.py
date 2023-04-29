@@ -2,6 +2,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class BaseModel(nn.Module):
+    """_summary_
+    
+    기본적인 CNN을 이용한 마스크 착용 여부 분류 모델 클래스
+
+    Args:
+        num_classes (int): 분류할 클래스 수
+        x (torch.Tensor): 모델에 입력할 이미지 데이터. 크기는 (batch_size, channel=3, height, width)
+
+    Returns:
+        output (torch.Tensor): foward 결과 output. 크기는 (batch_size, num_classes)
+    """
     def __init__(self, num_classes):
         super().__init__()
 
