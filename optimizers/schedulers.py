@@ -1,13 +1,7 @@
-from torch.optim import SGD, Adagrad, Adam
 from torch.optim.lr_scheduler import StepLR, LambdaLR, ExponentialLR, CosineAnnealingLR, CyclicLR, ReduceLROnPlateau
 
-_optimizer_entrypoints = {
-    'sgd': SGD,
-    'adagrad': Adagrad,
-    'adam': Adam,
-}
 
-_scheduler_entrypoints = {
+SCHEDULER_ENTRYPOINTS = {
     'steplr': StepLR,
     'lambdalr': LambdaLR,
     'exponentiallr': ExponentialLR,
@@ -16,60 +10,38 @@ _scheduler_entrypoints = {
     'reducelronplateau': ReduceLROnPlateau
 }
 
-def optimizer_entrypoint(optimizer_name):
-    return _optimizer_entrypoints[optimizer_name]
-
-
-def is_optimizer(optimizer_name):
-    return optimizer_name in _optimizer_entrypoints
-
 
 def scheduler_entrypoint(scheduler_name):
-    return _scheduler_entrypoints[scheduler_name]
+    """_summary_
+    SCHEDULER_ENTRYPOINTS에 해당하는 scheduler return
+
+    Args:
+        scheduler_name (str): scheduler name
+
+    Returns:
+        scheduler (class): scheduler
+    """
+    return SCHEDULER_ENTRYPOINTS[scheduler_name]
 
 
 def is_scheduler(scheduler_name):
-    return scheduler_name in _scheduler_entrypoints
-
-
-def create_optimizer(optimizer_name, parameter, args):
     """_summary_
+    SCHEDULER_ENTRYPOINTS에 해당하는 scheduler인지 확인
 
     Args:
-        optimizer_name (str): [sgd, adagrad, adam] 사용가능
-
-    Raises:
-        RuntimeError: 해당 하는 optimizer가 없다면 raise error
+        scheduler_name (str): scheduler name
 
     Returns:
-        optimizer (Module): 해당 하는 optimizer return
+        bool: 있다면 True, 없으면 False
     """
-    if is_optimizer(optimizer_name):
-        create_fn = optimizer_entrypoint(optimizer_name)
-        if optimizer_name in 'sgd':
-            optimizer = create_fn(
-                parameter,
-                lr= args.lr,
-                momentum = args.momentum,
-                weight_decay = args.weight_decay
-                )
-
-        else:
-            optimizer = create_fn(
-                parameter,
-                lr= args.lr,
-                weight_decay = args.weight_decay
-                )
-    else:
-        raise RuntimeError('Unknown optimizer (%s)' % optimizer_name)
-    return optimizer
+    return scheduler_name in SCHEDULER_ENTRYPOINTS
 
 
 def create_scheduler(scheduler_name, optimizer, args):
     """_summary_
 
     Args:
-        scheduler_name (str): ["steplr", "lambdalr","exponentialLR", "cosineannealinglr", "cycliclr", "reducelronplateau"] 사용가능
+        scheduler_name (str): ['steplr', 'lambdalr', 'exponentiallr', 'cosineannealinglr', 'cycliclr', 'reducelronplateau'] 사용가능
 
     Raises:
         RuntimeError: 해당 하는 scheduler가 없다면 raise error
