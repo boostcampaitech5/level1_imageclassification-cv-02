@@ -1,143 +1,62 @@
 import argparse
-import glob
+
 import json
 import os
-import random
-import re
-from importlib import import_module
-from pathlib import Path
 
-import matplotlib.pyplot as plt
+from importlib import import_module
+
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import f1_score
 
-from dataset import make_dataloader, MaskBaseDataset
-from loss import create_criterion
-from optims import create_optimizer, create_scheduler
+from datasets.my_dataset import make_dataloader
+from optimizers.loss import create_criterion
+from optimizers.optims import create_optimizer
+from optimizers.schedulers import create_scheduler
+from utils.util import seed_everything, increment_path, get_lr,get_numclass, make_cutmix_input
 
-
-def rand_bbox(size, lam):
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)
-    cut_w = np.int(W * cut_rat)
-    cut_h = np.int(H * cut_rat)
-
-    # uniform
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
-
-    bbx1 = np.clip(cx - cut_w // 2, 0, W)
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bbx2 = np.clip(cx + cut_w // 2, 0, W)
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
-
-    return bbx1, bby1, bbx2, bby2
-
-def seed_everything(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
-
-
-def get_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        return param_group['lr']
-
-
-def grid_image(np_images, gts, preds, n=16, shuffle=False):
-    batch_size = np_images.shape[0]
-    assert n <= batch_size
-
-    choices = random.choices(range(batch_size), k=n) if shuffle else list(range(n))
-    figure = plt.figure(figsize=(12, 18 + 2))  # cautions: hardcoded, 이미지 크기에 따라 figsize 를 조정해야 할 수 있습니다. T.T
-    plt.subplots_adjust(top=0.8)  # cautions: hardcoded, 이미지 크기에 따라 top 를 조정해야 할 수 있습니다. T.T
-    n_grid = int(np.ceil(n ** 0.5))
-    tasks = ["mask", "gender", "age"]
-    for idx, choice in enumerate(choices):
-        gt = gts[choice].item()
-        pred = preds[choice].item()
-        image = np_images[choice]
-        gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
-        pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
-        title = "\n".join([
-            f"{task} - gt: {gt_label}, pred: {pred_label}"
-            for gt_label, pred_label, task
-            in zip(gt_decoded_labels, pred_decoded_labels, tasks)
-        ])
-
-        plt.subplot(n_grid, n_grid, idx + 1, title=title)
-        plt.xticks([])
-        plt.yticks([])
-        plt.grid(False)
-        plt.imshow(image, cmap=plt.cm.binary)
-
-    return figure
-
-
-def increment_path(path, exist_ok=False):
-    """ Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
-
-    Args:
-        path (str or pathlib.Path): f"{model_dir}/{args.name}".
-        exist_ok (bool): whether increment path (increment if False).
-    """
-    path = Path(path)
-    if (path.exists() and exist_ok) or (not path.exists()):
-        return str(path)
-    else:
-        dirs = glob.glob(f"{path}*")
-        matches = [re.search(rf"%s(\d+)" % path.stem, d) for d in dirs]
-        i = [int(m.groups()[0]) for m in matches if m]
-        n = max(i) + 1 if i else 2
-        return f"{path}{n}"
 
 def train(data_dir, model_dir, args):
+    """_summary_
+    주어진 args에 따라 data_dir으로 모델을 학습 후, model_dir에 모델 및 성능 저장
+
+    Args:
+        data_dir (str): train data가 있는 파일 경로
+        model_dir (str) : 학습한 model을 저장할 파일 경로
+        args : train argument
+    """
     seed_everything(args.seed)
 
     # -- settings
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    if args.category == "multi":
-        num_classes = 18 # 18
-    elif args.category == "gender":
-        num_classes = 2
-    else:
-        num_classes = 3
-    args.num_classes = num_classes
+    args.num_classes = get_numclass(args.category)
 
     # make dataloader
     t_loaders, v_loaders = make_dataloader(data_dir,args)
 
     for k,(train_loader, val_loader) in enumerate(zip(t_loaders,v_loaders)):
         # -- model
-        model_module = getattr(import_module("model"), args.model)  # default: BaseModel
+        model_module = getattr(import_module("models.my_model"), args.model)  # default: BaseModel
         model = model_module(
-            num_classes=num_classes
+            num_classes=args.num_classes
         )
         if args.canny:
             backbone = model
-            model_module = getattr(import_module("model"), "Canny")
+            model_module = getattr(import_module("models.my_model"), "Canny")
             model = model_module(
                 backbone = backbone,
             )
         elif args.arcface:
             backbone = model_module(num_classes=1000)
-            model_module = getattr(import_module("model"), "ArcfaceModel")
+            model_module = getattr(import_module("models.my_model"), "ArcfaceModel")
             model = model_module(
                 backbone = backbone,
                 num_features = 1000,
-                num_classes = num_classes
+                num_classes = args.num_classes
             )    
-            print(model)
         model = model.to(device)
         model = torch.nn.DataParallel(model)
 
@@ -180,14 +99,7 @@ def train(data_dir, model_dir, args):
 
                 if args.cutmix:
                     # generate mixed sample
-                    lam = np.random.beta(1.0, 1.0)
-                    rand_index = torch.randperm(inputs.size()[0]).to(device)
-                    labels_a = labels
-                    labels_b = labels[rand_index]
-                    bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam)
-                    inputs[:, :, bbx1:bbx2, bby1:bby2] = inputs[rand_index, :, bbx1:bbx2, bby1:bby2]
-                    # adjust lambda to exactly match pixel ratio
-                    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (inputs.size()[-1] * inputs.size()[-2]))
+                    inputs, labels_a, labels_b, lam = make_cutmix_input(inputs,labels)
                     # compute output
                     outs = model(inputs)
                     loss = criterion(outs, labels_a) * lam + criterion(outs, labels_b) * (1. - lam)
@@ -253,7 +165,7 @@ def train(data_dir, model_dir, args):
                     if args.mixup:
                         t = []
                         for i in range(args.valid_batch_size):
-                            temp = torch.tensor([0]*num_classes)
+                            temp = torch.tensor([0]*args.num_classes)
                             temp[labels[i]] = 1.0
                             t.append(temp)
                         labels = torch.stack(t).to(device).float()
@@ -271,6 +183,7 @@ def train(data_dir, model_dir, args):
                 best_val_acc = max(best_val_acc, val_acc)
                 best_val_loss = min(best_val_loss, val_loss)
 
+                # early stopping
                 if val_score > best_val_score:
                     early_stop = 0
                     print(f"New best model for f1_score : {val_score:4.2}! saving the best model..")
@@ -283,6 +196,8 @@ def train(data_dir, model_dir, args):
                     elif early_stop > args.early_stopping_patience:
                         print("Early Stopping")
                         break
+                
+                # 모델 성능 print
                 torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
                 print(
                     f"{k} [Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2}, f1_score: {val_score:4.2} || "
@@ -301,7 +216,7 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 1)')
+    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 30)')
     
     # data
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
@@ -316,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--cutmix', action='store_true', help='use cutmix')
     
     # model
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    parser.add_argument('--model', type=str, default='MaskResnet18', help='model type (default: MaskResnet18)')
     parser.add_argument('--category', type=str, default = "multi",choices=["multi","mask","gender","age"], help='choose labels type of multi,mask,gender,age')
     parser.add_argument('--early_stopping_patience', type=int, default = 5, help='input early stopping patience, It does not work if you input -1, default : 5')
     parser.add_argument('--arcface', action='store_true', help ="using arcface loss")
@@ -348,6 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
+    # /opt/ml/input
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
 

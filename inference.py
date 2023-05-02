@@ -9,54 +9,21 @@ from torch.utils.data import DataLoader
 import numpy as np
 import torch.nn as nn
 
-from dataset import CustomDataset
-import json
-
-def load_model(saved_model, num_classes, device,json_data):
-    """_summary_
-
-    Args:
-        saved_model (str): saved_model path
-        num_classes (int): 모델 구조를 동일하게 맞추기 위한 num_classes
-        device (str): device 
-
-    Returns:
-        model : weight를 불러온 모델 
-    """
-
-    
-    model_module = getattr(import_module("model"), json_data["model"])  # config.json 에 있는 파일
-    model = model_module(
-        num_classes=num_classes,
-    )
-    if json_data['canny']:
-        backbone = model
-        model_module = getattr(import_module("model"), "Canny")
-        model = model_module(
-            backbone = backbone,
-        )
-    elif json_data['arcface']:
-        backbone = model_module(num_classes=1000)
-        model_module = getattr(import_module("model"), "ArcfaceModelInfer")
-        model = model_module(
-            backbone = backbone,
-            num_features = 1000,
-            num_classes = num_classes
-        )    
-
-    # tarpath = os.path.join(saved_model, 'best.tar.gz')
-    # tar = tarfile.open(tarpath, 'r:gz')
-    # tar.extractall(path=saved_model)
-    model_path = os.path.join(saved_model, 'best.pth')
-    model.load_state_dict(torch.load(model_path, map_location=device))
-
-    return model
-
+from datasets.my_dataset import CustomDataset
+from utils.util import read_json, load_model, get_numclass
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
+    """_summary_
+    model_dir에 있는 모델을 args에 따라 data_dir에 있는 데이터 label을 예측한 뒤 예측값을 output_dir에 csv파일로 저장
+
+    Args:
+        data_dir (str): 라벨을 예측할 데이터가 있는 파일 경로
+        model_dir (str) : 학습한 model을 불러올 파일 경로
+        output_dir(str) : 예측한 데이터를 저장할 파일 경로
+        args : inference argument
     """
-    """
+    # -- settings
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
@@ -65,12 +32,15 @@ def inference(data_dir, model_dir, output_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    transform_cls = getattr(import_module("dataset"), args.augmentation)
+    transform_cls = getattr(import_module("datasets.augmentation"), args.augmentation)
     transform = transform_cls(
         resize = args.resize,
     )
 
+    # data transform
     dataset = CustomDataset(img_paths, transform = transform)
+
+    # dataloader
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -80,6 +50,7 @@ def inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
 
+    # -- ensemble
     if args.ensemble:
         dirlist = []
         for p in os.listdir(model_dir):
@@ -91,6 +62,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
     preds = []
     with torch.no_grad():
+        # predict loop
         for idx, images in enumerate(loader):
             images = images.to(device)
             vote = {
@@ -100,18 +72,13 @@ def inference(data_dir, model_dir, output_dir, args):
                 "multi" : np.array([[0.]*18 for _ in range(images.shape[0])])
                 }
 
+            # predict 수행
             for model_path in dirlist:
-                config_path = os.path.join(model_path, 'config.json')
-                with open(config_path, 'r') as f:
-                    json_data = json.load(f)
+                json_data = read_json(os.path.join(model_path, 'config.json'))
+                
                 category = json_data['category']
 
-                if "gender" in category:
-                    num_classes = 2
-                elif "multi" in category:
-                    num_classes = 18
-                else:
-                    num_classes = 3
+                num_classes = get_numclass(category)
 
                 model = load_model(model_path, num_classes, device,json_data).to(device) 
                 model.eval()
@@ -121,6 +88,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
                 vote[category] += logit.cpu().numpy()
             
+            # 한번에 18개의 label로 나누는 경우와, 카테고리를 나누어서 구한 뒤 통합하는 경우
             if category == "multi":
                 pred = np.argmax(vote[category],axis=-1)
             else:
@@ -129,8 +97,10 @@ def inference(data_dir, model_dir, output_dir, args):
                 gender = np.argmax(vote['gender'],axis=-1)
 
                 pred = mask * 6 + gender * 3 + age
+
             preds.extend(list(pred))
 
+    # 예측 label 저장
     info['ans'] = preds
     save_path = os.path.join(output_dir, args.name_csv+".csv")
     info.to_csv(save_path, index=False)
